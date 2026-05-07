@@ -1,0 +1,64 @@
+########################################################
+gpu_rank: '0'
+device: cuda:0
+num_workers: 0
+size: 512
+up_factor: 1
+degradation_resolution: 228
+noise_level: 0
+average: 1
+degradation_method: blur-composite-noise
+lifetime_flag: False
+read_LR_flag: False
+read_version: "real-time"
+net_G:
+  initialize: True
+  input_channels: 1
+  model_decouple_name: Unet
+  # pixel loss fea_loss feq_loss grad_loss corr_loss adv_loss
+  weight_decouple: [0, 0, 0, 0, 0, 0]
+  pretrain_dir: Trained_models\DESM_IO\DESM_IO_Micro_Mito_Lyso_228_0_1_temp.pth
+  #Trained_models\DESM_IO\....pth
+
+save_eval_dir: visualization\Semi_synthetic_evaluation\DESM_IO\Micro_Mito_Lyso_228_0_1_temp
+  
+net_D:
+  model_name: UnetD 
+  pretrain_dir: None
+  
+
+num_file_train: 300
+num_file_val: 200
+train:
+  mean: [0.0]
+  std: [50.0]
+  lr_G: 0.00001
+  lr_D: 0.0000001
+  index_per_D: 2
+  epoches: 1000
+  epoches_per_val: 10
+  epoches_per_save: 10
+  batch_size: 1
+  num_iter: 1
+  optimizer: Adam
+  scheduler: CosineAnnealingLR
+
+raw_data_resolution:
+  Micro: 85.93
+  Mito: 87.09
+  Lyso: 91.97
+  Membrane: 81.24
+  NPCs: 85.92
+  Mito_inner: 82.88
+  Mito_inner_deconv: 81.19
+
+
+train_dir_LR: data\train_LR
+val_dir_LR: data\val_LR
+train_dir_HR: data\train_HR #_deconv
+val_dir_HR: data\val_HR #_deconv
+
+
+category: ['Micro', 'Mito', 'Lyso']
+factor_list: [1, 1, 1]
+########################################################

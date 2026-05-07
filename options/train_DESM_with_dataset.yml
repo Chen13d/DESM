@@ -1,0 +1,66 @@
+########################################################
+gpu_rank: '0'
+device: cuda:0
+num_workers: 4
+size: 384
+up_factor: 1
+degradation_resolution: 280
+noise_level: 0.280
+average: 1
+degradation_method: blur-composite-noise
+lifetime_flag: True
+read_LR_flag: False
+read_version: "prepared"
+
+net_G:
+  initialize: True
+  input_channels: 1
+  model_decouple_name: Unet_FLIM_att
+  # pixel loss fea_loss SSIM_loss grad_loss corr_loss adv_loss
+  weight_decouple: [1, 0.01, 1, 0, 0, 1]
+  pretrain_dir: None
+  
+net_D:
+  model_name: UnetD 
+  pretrain_dir: None 
+
+num_file_train: 10
+num_file_val: 10
+train:
+  mean: [0.0]
+  std: [50.0]
+  lr_G: 0.00001
+  lr_D: 0.0000001
+  index_per_D: 2
+  epoches: 1000
+  epoches_per_val: 2
+  epoches_per_save: 2
+  batch_size: 1
+  num_iter: 1
+  optimizer: Adam
+  scheduler: CosineAnnealingLR
+
+# Here's your the measured resolution (nm) of the raw data (single-channel SR images)
+raw_data_resolution:
+  Micro: 85.93
+  Mito: 87.09
+  Lyso: 91.97
+  Membrane: 81.24
+  NPCs: 85.92
+  Mito_inner: 82.88
+  Mito_inner_deconv: 81.19
+
+train_dir_LR: data\train_LR
+test_dir_LR: data\test_LR
+train_dir_HR: data\train_HR
+test_dir_HR: data\test_HR
+
+validation_dir: validation
+validation_list: ['loss_plots', 'weights', 'excels', 'validation_images', 'train_image']
+
+# Here's your folder name for the training curve, weights and validation images.
+validation_date: test #DSCM_FLIM_new_Mito_Lyso_280_0.070_1_DSCM_384_Unet_fea_loss_0.01_SSIM_loss_1_grad_loss_0_GAN_loss_1_real-time_1000_epoches
+
+category: ['Micro', 'Mito', 'Lyso']
+factor_list: [1 ,1, 1]
+########################################################
