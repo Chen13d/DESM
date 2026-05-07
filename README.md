@@ -17,10 +17,11 @@ The framework supports two modes:
 
 The codebase includes:
 
+- DESM-IO inference on single-channenl confocal data
+- DESM-IL inference on single-channel FLIM data
+- evaluation on semi-synthetic data
 - training on simulation / prepared datasets
-- evaluation on synthetic and semi-synthetic data
-- FLIM-assisted inference and evaluation
-- visualization scripts for reconstructed results
+
 
 ---
 
