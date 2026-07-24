@@ -28,7 +28,7 @@ The codebase includes:
 
 **Self-supervised single-channel multiplexed super-resolution microscopy**
 
-Qinglin Chen<sup>1,†</sup>, Luwei Wang<sup>1,†</sup>, Min Yi<sup>1</sup>, Xiangcong Xu<sup>1</sup>, Jia Li<sup>1</sup>, Dan Shao<sup>2</sup>, Xiaoyu Weng<sup>1,*</sup>, Liwei Liu<sup>1</sup>, Dayong Jin<sup>2,3,*</sup>, & Junle Qu<sup>1,*</sup>
+Qinglin Chen<sup>1,&dagger;</sup>, Luwei Wang<sup>1,&dagger;</sup>, Min Yi<sup>1</sup>, Xiangcong Xu<sup>1</sup>, Jia Li<sup>1</sup>, Dan Shao<sup>2</sup>, Xiaoyu Weng<sup>1,&#42;</sup>, Liwei Liu<sup>1</sup>, Dayong Jin<sup>2,3,&#42;</sup>, & Junle Qu<sup>1,&#42;</sup>
 
 <sup>1</sup> State Key Laboratory of Radio Frequency Heterogeneous Integration (Shenzhen University) & Key Laboratory of Optoelectronic Devices and Systems, College of Physics and Optoelectronic Engineering, Shenzhen University, Shenzhen 518060, China
 
@@ -36,8 +36,8 @@ Qinglin Chen<sup>1,†</sup>, Luwei Wang<sup>1,†</sup>, Min Yi<sup>1</sup>, Xi
 
 <sup>3</sup> Zhejiang Provincial Engineering Research Center for Organelles Diagnostics and Therapy, Eastern Institute of Technology, Ningbo 315200, China
 
-† These authors contributed equally: Qinglin Chen, Luwei Wang.  
-* Corresponding authors: xiaoyu@szu.edu.cn; dayong.jin@eitech.edu.cn; jlqu@szu.edu.cn
+<sup>&dagger;</sup> These authors contributed equally: Qinglin Chen, Luwei Wang.  
+<sup>&#42;</sup> Corresponding authors: xiaoyu@szu.edu.cn; dayong.jin@eitech.edu.cn; jlqu@szu.edu.cn
 
 ---
 
