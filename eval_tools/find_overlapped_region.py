@@ -1,3 +1,4 @@
+import argparse
 import os, sys, tifffile, copy
 import pandas as pd
 from skimage.metrics import structural_similarity as ssim_
@@ -32,32 +33,27 @@ def generate_overlapped_map(image_list):
     img_overlapped[img_overlapped != 0] = 1
     return img_overlapped
 
-             
-        
+def main(image_paths):
+    image_list = [tifffile.imread(path) for path in image_paths]
+    thresh_list = [make_threshold(img) for img in image_list]
 
-img1 = tifffile.imread(r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\data_20250720_1\0_GT_0.tif")
-img2 = tifffile.imread(r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\data_20250720_1\0_GT_1.tif")
-img3 = tifffile.imread(r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\data_20250720_1\0_GT_2.tif")
+    plt.figure()
+    for idx, thresh_img in enumerate(thresh_list, start=1):
+        plt.subplot(1, len(thresh_list), idx)
+        plt.imshow(thresh_img)
+        plt.axis("off")
 
-img1_thresh = make_threshold(img1)
-img2_thresh = make_threshold(img2)
-img3_thresh = make_threshold(img3)
+    img_overlapped = generate_overlapped_map(image_list)
+    plt.figure()
+    plt.imshow(img_overlapped)
+    plt.axis("off")
+    plt.show()
 
-plt.figure()
-plt.subplot(131)
-plt.imshow(img1_thresh)
-plt.subplot(132)
-plt.imshow(img2_thresh)
-plt.subplot(133)
-plt.imshow(img3_thresh)
 
-img_overlapped = img1_thresh + img2_thresh + img3_thresh
-img_overlapped[img_overlapped == 255] = 0
-img_overlapped[img_overlapped != 0] = 1
-
-plt.figure()
-plt.imshow(img_overlapped)
-
-plt.show()
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Visualize thresholded channels and their overlap map.")
+    parser.add_argument("image_paths", nargs="+", help="Input TIFF paths to combine into an overlap map.")
+    args = parser.parse_args()
+    main(args.image_paths)
 
 

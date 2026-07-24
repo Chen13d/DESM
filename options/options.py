@@ -30,7 +30,5 @@ def write2Yaml(data, save_path="test.yaml"):
         yaml.dump(data, f)
 
 if __name__ == "__main__":
-    opt_path = r"D:\CQL\codes\microscopy_decouple\options\train_DSRM.yml"
-    opt = parse(opt_path=opt_path)
-    write2Yaml(opt, save_path=r'D:\CQL\codes\microscopy_decouple\validation\2.19_DSRM_GAN_x1\train_DSRM.yaml')
+    print("options.py provides YAML helpers and is intended to be imported.")
     

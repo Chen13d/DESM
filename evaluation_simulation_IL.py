@@ -3,7 +3,7 @@ import pandas as pd
 from tqdm import tqdm
 cwd = os.getcwd()
 from options.options import parse
-from dataset.read_prepared_data_FLIM import *
+from dataset.read_prepared_data import *
 from net.make_model import *
 from loss.SSIM_loss import *
 from loss.NRMAE import *
@@ -36,7 +36,7 @@ def main():
     # "old" = read data pairs, "new" = generate pseudo data pairs
     if opt['read_version'] == "real-time":
         # generate Dataloader random selection + cropping + flipping
-        _, val_loader, num_train_image = gen_prepared_dataloader_FLIM(opt=opt, random_selection=False, crop_flag=False, flip_flag=False)
+        _, val_loader, num_train_image = gen_prepared_dataloader(opt=opt, random_selection=False, crop_flag=False, flip_flag=False)
     elif opt['read_version'] == "prepared":
         combination_name = f"{opt['degeneration_w0']}" + f"_level_{opt['noise_level']}"
         read_dir_train = os.path.join(r'data\simulated_data\train', combination_name)
@@ -44,8 +44,8 @@ def main():
         #_, val_loader, num_train_image = gen_prepared_dataloader(read_dir_train=read_dir_train, read_dir_val=read_dir_val, num_file_train=opt['num_train'], 
         #                                                        num_file_val=opt['num_test'], num_org=len(opt['category']), org_list=opt['category'], size=opt['size'], 
         #                                                            batch_size=opt['train']['batch_size'], device=opt['device'])
-        train_dataset = prepared_dataset_FLIM(read_dir=read_dir_train, num_file=opt['num_train'], num_org=len(opt['category']), org_list=opt['category'], size=opt['size'], device=opt['device'], crop_flag=False, flip_flag=False)
-        val_dataset = prepared_dataset_FLIM(read_dir=read_dir_val, num_file=opt['num_test'], num_org=len(opt['category']), org_list=opt['category'], size=opt['size'], device=opt['device'], random_selection_flag=False, crop_flag=False, flip_flag=False)
+        train_dataset = gen_prepared_dataloader(read_dir=read_dir_train, num_file=opt['num_train'], num_org=len(opt['category']), org_list=opt['category'], size=opt['size'], device=opt['device'], crop_flag=False, flip_flag=False)
+        val_dataset = gen_prepared_dataloader(read_dir=read_dir_val, num_file=opt['num_test'], num_org=len(opt['category']), org_list=opt['category'], size=opt['size'], device=opt['device'], random_selection_flag=False, crop_flag=False, flip_flag=False)
         train_loader = DataLoader(train_dataset, shuffle=True, batch_size=opt['train']['batch_size'], num_workers=1, persistent_workers=True)
         val_loader = DataLoader(val_dataset, shuffle=False, batch_size=1)
         num_train_image = opt['num_train']
@@ -94,19 +94,19 @@ def main():
 
     bar.close()
 
-    # 将这些列表打包在一起，以 mae_list 为排序依据，从小到大
+    # List, mae_list Sort,
     sorted_items = sorted(zip(mae_list, Input_list, GT_list, sta_list), key=lambda x: x[0])
 
-    # 解包排序后的前50项
+    # Sort50
     mae_list_sorted, Input_list_sorted, GT_list_sorted, sta_list_sorted = zip(*sorted_items)
 
-    # 如果你需要的是列表形式（而不是 tuple）
+    # IfNeedList( tuple)
     mae_list = list(mae_list_sorted)
     #Input_list = list(Input_list_sorted)
     #GT_list = list(GT_list_sorted)
     #sta_list = list(sta_list_sorted)
 
-    # 保存验证图像
+    # SaveImage
     toolbox.gen_validation_images_IL(data_list=[Input_list, GT_list, lifetime_list, sta_list])
     toolbox.save_val_list(name="main")
 

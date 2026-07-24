@@ -28,36 +28,32 @@ from matplotlib.colors import hsv_to_rgb
 device = 'cuda'
 
 def adaptive_binarize_auto(img, min_obj=0, fill_holes=0):
-    """
-    img: 2D ndarray (float / uint16 都行)
-    返回: 0/1 uint8 mask
-    参数 min_obj / fill_holes 可选（你不想调就保持0）
-    """
+    """img: 2D ndarray (float / uint16 ) Return: 0/1 uint8 mask Parameter min_obj / fill_holes (0)"""
     x = img.astype(np.float32, copy=False)
 
-    # 1) 稳健归一化，避免极亮点影响阈值
+    # 1) Normalize, AvoidThreshold
     p1, p99 = np.percentile(x, (1, 99))
     x = np.clip(x, p1, p99)
     x = (x - p1) / (p99 - p1 + 1e-8)
 
     H, W = x.shape
 
-    # 2) 自动决定局部尺度：取 min(H,W)/16，且为奇数，并限定最小31
+    # 2) : min(H,W)/16, , 31
     win = max(31, (min(H, W) // 16) | 1)
-    sigma = win / 6.0  # 与窗口对应的平滑尺度（经验上很稳）
+    sigma = win / 6.0  # Window()
 
-    # 3) 局部均值（背景） + 自适应偏置（由噪声估计得到）
+    # 3) (Background) + (Noise)
     mu = gaussian(x, sigma=sigma, preserve_range=True)
     res = x - mu
     mad = np.median(np.abs(res - np.median(res)))
     sigma_n = 1.4826 * mad  # robust noise std
 
-    # 偏置：噪声越大，阈值越往上抬；这个系数一般不需要改
+    # : Noise, Threshold; Need
     thr = mu + 1.0 * sigma_n
 
     mask = x > thr
 
-    # 4) 可选清理（你不想调参就先都设0）
+    # 4) (0)
     if min_obj > 0:
         mask = remove_small_objects(mask, min_size=min_obj)
     if fill_holes > 0:
@@ -67,10 +63,7 @@ def adaptive_binarize_auto(img, min_obj=0, fill_holes=0):
 
 
 def imagej_auto_default_mask(img, clip_percentile=(0.5, 99.5)):
-    """
-    尽量复现 ImageJ Threshold -> Auto (Default) 的感觉
-    返回: mask(uint8 0/1), threshold(0..255)
-    """
+    """ImageJ Threshold -> Auto (Default) Return: mask(uint8 0/1), threshold(0..255)"""
     x = img.astype(np.float32, copy=False)
 
     lo, hi = np.percentile(x, clip_percentile)
@@ -78,7 +71,7 @@ def imagej_auto_default_mask(img, clip_percentile=(0.5, 99.5)):
     x = (x - lo) / (hi - lo + 1e-8)
 
     x8 = img_as_ubyte(x)  # 0..255
-    t = threshold_isodata(x8)  # IsoData阈值
+    t = threshold_isodata(x8)  # IsoDataThreshold
     mask = (x8 > t).astype(np.uint8)
     return mask, t
 
@@ -97,28 +90,7 @@ def make_threshold_otsu(Input):
     return Output
 
 def relabel_background_to_zero(clustered_input, IO_prior_background):
-    """
-    先单独找“哪一个旧 label 最像背景”，然后把它重映射为 0。
-    其余旧 labels 按出现顺序重映射为 1,2,3,...
-
-    参数
-    ----
-    clustered_input : ndarray
-        2D/3D label image，旧标签可任意
-    IO_prior_background : ndarray
-        背景 prior mask，>0 表示背景区域
-
-    返回
-    ----
-    relabeled : ndarray(int32)
-        背景一定为 0，其余类为 1..K
-    bg_label : int
-        原始 clustered_input 中被判定为背景的旧 label
-    mapping : dict
-        old_label -> new_label
-    score_table : list[dict]
-        每个旧 label 的背景重叠统计，便于 debug
-    """
+    """" label Background", 0. labels 1,2,3,... Parameter ---- clustered_input : ndarray 2D/3D label image, IO_prior_background : ndarray Background prior mask, >0 Background Return ---- relabeled : ndarray(int32) Background 0, Class 1..K bg_label : int clustered_input Background label mapping : dict old_label -> new_label score_table : list[dict] label Background, debug"""
     clustered = np.asarray(clustered_input)
     bg_mask = (np.asarray(IO_prior_background) > 0)
 
@@ -131,7 +103,7 @@ def relabel_background_to_zero(clustered_input, IO_prior_background):
         area_l = np.count_nonzero(mask_l)
         overlap_bg = np.count_nonzero(mask_l & bg_mask)
 
-        # 用“背景纯度”来找背景类：该类内部有多少比例落在背景 prior 中
+        # "Background"BackgroundClass: ClassBackground prior
         purity_bg = overlap_bg / (area_l + 1e-8)
 
         score_table.append({
@@ -141,7 +113,7 @@ def relabel_background_to_zero(clustered_input, IO_prior_background):
             "purity_bg": float(purity_bg),
         })
 
-    # 先按 purity_bg 排，再按 overlap_bg 排，避免大面积并列时不稳定
+    # purity_bg , overlap_bg , Avoid
     score_table.sort(key=lambda d: (d["purity_bg"], d["overlap_bg"]), reverse=True)
     bg_label = int(score_table[0]["label"])
 
@@ -160,30 +132,7 @@ def relabel_background_to_zero(clustered_input, IO_prior_background):
 
 
 def relabel_foreground_by_priors(clustered_input_bg0, IO_prior_list, keep_unmatched=True):
-    """
-    在“背景已经是 0”的前提下，只对前景 labels 做 prior 匹配。
-    背景不参与匹配。
-
-    参数
-    ----
-    clustered_input_bg0 : ndarray
-        已经保证背景为 0 的 label image
-    IO_prior_list : list of ndarray
-        前景各类 prior masks，顺序决定输出标签 1,2,3,...
-    keep_unmatched : bool
-        若有未匹配到的旧前景标签：
-          True  -> 继续编号保留下来
-          False -> 保持为 0（不推荐）
-
-    返回
-    ----
-    fixed : ndarray(int32)
-        背景=0，prior 第 i 类 -> 标签 i+1
-    mapping : dict
-        old_fg_label -> new_fg_label
-    score_debug : dict
-        每个新标签对应的各旧标签得分
-    """
+    """"Background 0", labels prior . Background. Parameter ---- clustered_input_bg0 : ndarray Background 0 label image IO_prior_list : list of ndarray Class prior masks, Output 1,2,3,... keep_unmatched : bool : True -> False -> 0() Return ---- fixed : ndarray(int32) Background=0, prior i Class -> i+1 mapping : dict old_fg_label -> new_fg_label score_debug : dict"""
     clustered = np.asarray(clustered_input_bg0)
     priors = [(np.asarray(p) > 0) for p in IO_prior_list]
 
@@ -214,7 +163,7 @@ def relabel_foreground_by_priors(clustered_input_bg0, IO_prior_list, keep_unmatc
                 "iou": float(iou),
             })
 
-        # 优先按 IoU，次优先按 intersection
+        # IoU, intersection
         current_scores.sort(key=lambda d: (d["iou"], d["intersection"]), reverse=True)
         best_old = int(current_scores[0]["old_label"])
 
@@ -236,39 +185,31 @@ def relabel_foreground_by_priors(clustered_input_bg0, IO_prior_list, keep_unmatc
 
 def clean_labels_fill_bg_then_smooth(lbl_in,
                                     ksize=3,
-                                    fill_close_iter=1,   # 第一步：填背景洞（对前景mask做closing）
-                                    open_iter=1,         # 第二步：每类开运算（去毛刺）
-                                    close_iter=1,        # 第二步：每类闭运算（补小孔）
-                                    propagate_iters=100  # 标签传播填洞的迭代上限
+                                    fill_close_iter=1,   # : Background(maskclosing)
+                                    open_iter=1,         # : Class()
+                                    close_iter=1,        # : Class()
+                                    propagate_iters=100  # Implementation note.
                                     ):
-    """
-    lbl_in: 2D label image, background=0, classes=1..n (int)
-    目标：
-      A) 先把前景内部的 0 小洞补掉（不让背景“渗进来”）
-      B) 再对每个前景类做开/闭运算去毛刺
-      C) 尽量保证前景不被处理后变成背景（不产生新的0洞）
-
-    return: lbl_out (int32)
-    """
+    """lbl_in: 2D label image, background=0, classes=1..n (int) : A) 0 (Background"") B) Class/ C) Background(0) return: lbl_out (int32)"""
     lbl = np.asarray(lbl_in)
     out = lbl.copy().astype(np.int32)
 
     labels = [int(x) for x in np.unique(out) if int(x) != 0]
     if len(labels) == 0:
-        return out  # 全背景
+        return out  # Background
 
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (ksize, ksize))
 
-    # ---------- Step 1: 先补“背景洞”(0) ----------
+    # ---------- Step 1: "Background"(0) ----------
     fg0 = (out != 0).astype(np.uint8)
     if fill_close_iter > 0:
         fg_filled = cv2.morphologyEx(fg0, cv2.MORPH_CLOSE, kernel, iterations=fill_close_iter)
     else:
         fg_filled = fg0
 
-    holes = (fg_filled > 0) & (out == 0)  # 这些是需要从0变成某个前景类的像素
+    holes = (fg_filled > 0) & (out == 0)  # Need0ClassPixel
 
-    # 用“邻近类扩张传播”给 holes 赋类（谁先扩张到就归谁，基本等价最近邻传播）
+    # "Class" holes Class(, )
     if np.any(holes):
         for _ in range(propagate_iters):
             if not np.any(holes):
@@ -283,13 +224,13 @@ def clean_labels_fill_bg_then_smooth(lbl_in,
                     filled_any = True
             if not filled_any:
                 break
-        # 兜底：如果还有 holes（极少），直接放弃填充（或你也可改成填最近类）
+        # : If holes(), (Class)
         # out[holes] = 0
 
-    # 记录“补洞后”的前景区域：后续不希望这里变回0
+    # "": 0
     fg_ref = (out != 0)
 
-    # ---------- Step 2: 对前景每类做开闭 ----------
+    # ---------- Step 2: Class ----------
     smooth = np.zeros_like(out, dtype=np.int32)
 
     for l in labels:
@@ -301,14 +242,14 @@ def clean_labels_fill_bg_then_smooth(lbl_in,
             m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, kernel, iterations=close_iter)
 
         m = (m > 0)
-        # 写回策略：不抢其它类像素（只写空白，或写回自己原来的位置）
+        # : ClassPixel(, )
         write = m & ((smooth == 0) | (out == l))
         smooth[write] = l
 
-    # ---------- Step 3: 防止产生新的0洞（前景不应变背景） ----------
+    # ---------- Step 3: Prevent0(Background) ----------
     missing = fg_ref & (smooth == 0)
     if np.any(missing):
-        # 用 smooth 里已有的类向 missing 扩张填回去
+        # smooth Class missing
         for _ in range(propagate_iters):
             if not np.any(missing):
                 break
@@ -322,7 +263,7 @@ def clean_labels_fill_bg_then_smooth(lbl_in,
                     filled_any = True
             if not filled_any:
                 break
-        # 兜底：还有 missing 就用原 out 填回（至少不变成0）
+        # : missing out (0)
         if np.any(missing):
             smooth[missing] = out[missing]
 
@@ -404,9 +345,7 @@ def gen_FLIM(tm_data, intensity_image, t_range=[0, 6000]):
 
 
 def calibrate_labels_by_thresh(thresh_image, sorted_image):
-    """
-    使用重合率逻辑校准标签，确保背景永远是 0。
-    """
+    """, EnsureBackground 0."""
     unique_labels = np.unique(sorted_image)
     foreground_mask = (thresh_image > 0)
     
@@ -416,22 +355,22 @@ def calibrate_labels_by_thresh(thresh_image, sorted_image):
         total_pixels = np.sum(mask_l)
         if total_pixels == 0: continue
         
-        # 计算该标签在 thresh 前景区域的重合比例
-        # 比例越低，越有可能是背景
+        # Calculate thresh
+        # , Background
         overlap_score = np.sum(mask_l & foreground_mask) / total_pixels
         label_scores.append({'label': l, 'score': overlap_score})
     
-    # 1. 找到得分最低的 label 作为背景 (True Background)
+    # 1. label Background (True Background)
     label_scores.sort(key=lambda x: x['score'])
     true_bkg_label = label_scores[0]['label']
     
-    # 2. 准备重新映射
+    # 2.
     calibrated_image = np.zeros_like(sorted_image)
     
-    # 3. 将除背景外的其他标签按得分高低（或者原顺序）重新排列
-    # 这里我们将剩下的标签标记为 1, 2, 3...
+    # 3. Background()
+    # 1, 2, 3...
     new_label_idx = 1
-    # 除去背景标签，按剩余标签在原图中的数值大小排序，保证逻辑一致性
+    # Background, SizeSort,
     other_labels = [ls['label'] for ls in label_scores if ls['label'] != true_bkg_label]
     other_labels.sort() 
     
@@ -439,13 +378,13 @@ def calibrate_labels_by_thresh(thresh_image, sorted_image):
         calibrated_image[sorted_image == l] = new_label_idx
         new_label_idx += 1
         
-    #print(f"校准完成: 原始标签 {true_bkg_label} 被识别为背景(0)")
+    # print(f": {true_bkg_label} Background(0)")
     return calibrated_image
 
 
 def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=None, device='cuda', 
                           save_dir=None, resize_to_const=False, tm_min=0, tm_max=5000, 
-                          IO_prior_dilate_iter=2, smooth_iter=2, 
+                          IO_prior_dilate_iter=0, smooth_iter=2, 
                           org_list=['Micro', 'Mito', 'Lyso'], show_image=False
                           ):
     file_list = natsort.natsorted(os.listdir(read_dir))    
@@ -468,41 +407,41 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                         if read_dir_file.find(zoom_list[i]) != -1:
                             zoom = zoom_list[i]
                 #img = np.array(Image.open(read_dir_file))
-                img = tifffile.imread(read_dir_file)
-                tm_data = np.loadtxt(read_dir_ASC)#[:1008, :1008]
+                intensity_image = tifffile.imread(read_dir_file)
+                lifetime_distribution = np.loadtxt(read_dir_ASC)#[:1008, :1008]
 
                 # resize into a constant pixel size
-                raw_h, raw_w = img.shape
+                raw_h, raw_w = intensity_image.shape
                 for zoom_index in range(len(zoom_list)):
                         if zoom == zoom_list[zoom_index]:
                             for size_index in range(len(size_list)):
                                 if raw_h == size_list[size_index]:
                                     convert_ratio = convert_table[zoom_index][size_index]/20
-                                    img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
-                                    img = img[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
-                                    tm_data = resize(tm_data, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
-                                    tm_data = tm_data[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
+                                    intensity_image = resize(intensity_image, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                                    intensity_image = intensity_image[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
+                                    lifetime_distribution = resize(lifetime_distribution, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                                    lifetime_distribution = lifetime_distribution[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
 
-                FLIM_image = gen_FLIM(tm_data=tm_data, intensity_image=img, t_range=[tm_min, tm_max])
+                FLIM_image = gen_FLIM(tm_data=lifetime_distribution, intensity_image=intensity_image, t_range=[tm_min, tm_max])
 
                 # write a FLIM color bar for reference
                 temp_bar_int = np.linspace(5000, 0, 150)[:, np.newaxis] * np.ones((1, 15))
                 temp_bar_lifetime = np.linspace(5000, 0, 150)[:, np.newaxis] * np.ones((1, 15))
                 FLIM_bar = gen_FLIM(tm_data=temp_bar_lifetime, intensity_image=temp_bar_int, t_range=[tm_min, tm_max])
-                #tifffile.imwrite(r"E:\Onedrive\Work\DSRM_paper\FLIM\Different tm range Experiment\Mito_Lyso_280_0.070_1\Unet_FLIM\0-5000.tif", FLIM_bar)
+                # tifffile.imwrite(os.path.join(save_dir, "FLIM_bar.tif"), FLIM_bar)
 
                 #vector = FLIM_image.reshape(-1, 3)
-                vector = tm_data.reshape(-1, 1)
+                vector = lifetime_distribution.reshape(-1, 1)
                 n_cluster = 3
                 kmeans = KMeans(n_clusters=n_cluster, random_state=42, n_init=10)
                 kmeans.fit(vector)
                 labels = kmeans.labels_
-                clustered_image = labels.reshape(tm_data.shape)
+                clustered_image = labels.reshape(lifetime_distribution.shape)
 
                 # to ensure dtype
                 clustered_image = clustered_image.astype(np.uint8)
 
-                h, w = img.shape
+                h, w = intensity_image.shape
                 size = min(h, w)
                 upper_limit = 1440
                 if size > upper_limit:
@@ -532,7 +471,7 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                         col_cood_list.append([w-size, w])
                 for row in range(num_row):
                     for col in range(num_col):
-                        intensity_input = img[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
+                        intensity_input = intensity_image[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
                         clustered_Input = clustered_image[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
                         tifffile.imwrite(os.path.join(save_dir, "{}_clustered_original.tif".format(file_index)), 
                                          np.uint8(clustered_Input/np.max(clustered_Input)*255))
@@ -572,13 +511,13 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                             IO_prior_list = [IO_prior_list[0], IO_prior_list[1]]
 
 
-                        # Step 1: 先单独确定背景类，并把背景重映射为 0
+                        # Step 1: BackgroundClass, Background 0
                         clustered_bg0, bg_label, bg_mapping, bg_scores = relabel_background_to_zero(
                             clustered_input=clustered_Input,
                             IO_prior_background=IO_prior_background
                         )
 
-                        # Step 2: 再只对 foreground labels 做 prior 匹配
+                        # Step 2: foreground labels prior
                         permuted_clustered_Input, fg_mapping, fg_scores = relabel_foreground_by_priors(
                             clustered_input_bg0=clustered_bg0,
                             IO_prior_list=IO_prior_list,
@@ -613,24 +552,24 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                 for row in range(num_row):
                     for col in range(num_col):
                         full_pred[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]] = pred_list[row][col]
-                h, w = img.shape
-                img = np.uint8(img/np.max(img)*255)
+                h, w = intensity_image.shape
+                intensity_image = np.uint8(intensity_image/np.max(intensity_image)*255)
                 clustered_image = np.uint8(clustered_image/np.max(clustered_image)*255)
                 if resize_to_const:
-                    img = resize(img, (1024, 1024))
+                    intensity_image = resize(intensity_image, (1024, 1024))
                     full_pred = resize(full_pred, (1024,1024,full_pred.shape[-1]))
                     clustered_image = resize(clustered_image, (1024, 1024))
                     FLIM_image = resize(FLIM_image, (1024, 1024))
-                    tm_data = resize(tm_data, (1024, 1024))
+                    lifetime_distribution = resize(lifetime_distribution, (1024, 1024))
                 if file_list[file_index].find('tif') != -1:
-                    tifffile.imwrite(os.path.join(save_dir, f"{file_index}_intensity_input.tif"), img)
+                    tifffile.imwrite(os.path.join(save_dir, f"{file_index}_intensity_input.tif"), intensity_image)
                     tifffile.imwrite(os.path.join(save_dir, f"{file_index}_FLIM_image.tif"), FLIM_image)
-                    tifffile.imwrite(os.path.join(save_dir, f"{file_index}_tm_data.tif"), tm_data)
+                    tifffile.imwrite(os.path.join(save_dir, f"{file_index}_tm_data.tif"), lifetime_distribution)
                     full_pred = np.uint8(full_pred/np.max(full_pred)*255)
                     for org_index in range(full_pred.shape[-1]):
                         tifffile.imwrite(os.path.join(save_dir, f"{file_index}_{org_index}_SR.tif"), np.uint8(full_pred[:,:,org_index]))
                 
-                SR_image = np.zeros_like(img, dtype=np.uint16)
+                SR_image = np.zeros_like(intensity_image, dtype=np.uint16)
                 for i in range(full_pred.shape[-1]):
                     SR_image += full_pred[:,:,i]
                 tifffile.imwrite(os.path.join(save_dir, f"{file_index}_SR_only.tif"), SR_image)
@@ -642,7 +581,7 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                     if file_index == 0:
                         plt.figure(figsize=(12, 12))
                         plt.subplot(221)
-                        plt.imshow(img, cmap='gray')
+                        plt.imshow(intensity_image, cmap='gray')
                         plt.title('Intensity Input (single-channel LR)')
                         plt.axis('off')
 
@@ -674,12 +613,12 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                     if file_index == 0:
                         plt.figure(figsize=(12, 12))
                         plt.subplot(231)
-                        plt.imshow(img, cmap='gray')
+                        plt.imshow(intensity_image, cmap='gray')
                         plt.title('Intensity Input (single-channel LR)')
                         plt.axis('off')
 
                         plt.subplot(232)
-                        plt.imshow(tm_data, cmap='gray')
+                        plt.imshow(lifetime_distribution, cmap='gray')
                         plt.title('lifetime distribution')
                         plt.axis('off')
 
@@ -709,55 +648,3 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
             #clustered_stack.append(to_cpu(clustered_Input)[0,0].astype(np.uint16))
             #tifffile.imwrite(os.path.join(Comparison_dir, f"{prior_dilate_index}_{smooth_index}_Output.tif"), full_pred.astype(np.uint16))
             #tifffile.imwrite(os.path.join(Comparison_dir, f"{prior_dilate_index}_{smooth_index}_clustered_image.tif"), to_cpu(clustered_Input)[0,0].astype(np.uint16))
-
-
-if __name__ == "__main__":
-    if 0:
-        # Micro Mito Lyso
-        read_dir_intensity = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Intensity'
-        save_dir = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Results'
-        read_dir_asc = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\ASC'
-        weights_dir = r"Trained_models\DESM_IL\DESM_IL_Micro_Mito_Lyso_Unet_FLIM_att.pth"
-        #weights_dir = r"Trained_models\DESM_IL\DESM_IL_Micro_Mito_Lyso_Unet.pth"
-        prior_weights_dir = r"Trained_models\DESM_IL\DESM_IO_Prior_Micro_Mito_Lyso.pth"
-
-        prior_dilate_index = 2
-        smooth_index=4
-        DESM_IL_inference(read_dir=read_dir_intensity, read_dir_asc=read_dir_asc, weights_dir=weights_dir, prior_weights_dir=prior_weights_dir,
-                                save_dir=save_dir, resize_to_const=False, tm_min=0, tm_max=5500, 
-                                org_list=['Micro', 'Mito', 'Lyso'], factor_list=[1, 1], show_image="Layout_1") 
-        
-        # Micro Mito Lyso
-        read_dir_intensity = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Intensity'
-        save_dir = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Results'
-        read_dir_asc = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\ASC'
-        #weights_dir = r"Trained_models\DESM_IL\DESM_IL_Micro_Mito_Lyso_Unet_FLIM_att.pth"
-        weights_dir = r"Trained_models\DESM_IL\DESM_IL_Micro_Mito_Lyso_Unet.pth"
-        prior_weights_dir = r"Trained_models\DESM_IL\DESM_IO_Prior_Micro_Mito_Lyso.pth"
-
-        #DESM_IL_inference(read_dir=read_dir_intensity, read_dir_asc=read_dir_asc, weights_dir=weights_dir, prior_weights_dir=prior_weights_dir,
-        #                        save_dir=save_dir, resize_to_const=False, tm_min=0, tm_max=5500, 
-        #                        org_list=['Micro', 'Mito', 'Lyso'], factor_list=[1, 1], show_image="Layout_1") 
-        #plt.show()
-
-    if 1:
-        Comparison_dir = r"visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Comparison"
-        output_stack = []
-        clustered_stack = []
-
-        for prior_dilate_index in range(0, 5):
-            for smooth_index in range(0, 10):
-                # Micro Mito Lyso
-                read_dir_intensity = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Intensity'
-                save_dir = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\Results'
-                read_dir_asc = r'visualization\real-world data\DESM_IL_Microtubules_Mitochondria_Lysosomes\ASC'
-                weights_dir = r"Trained_models\DESM_IL\main_G_Unet_FLIM_att.pth"
-                prior_weights_dir = r"Trained_models\DESM_IL\DESM_IO_Prior_Micro_Mito_Lyso.pth"
-                print(prior_dilate_index, smooth_index)
-                DESM_IL_inference(read_dir=read_dir_intensity, read_dir_asc=read_dir_asc, weights_dir=weights_dir, prior_weights_dir=prior_weights_dir,
-                                        save_dir=save_dir, resize_to_const=False, tm_min=0, tm_max=5500, 
-                                        org_list=['Micro', 'Mito', 'Lyso'], show_image="Layout_1", IO_prior_dilate_iter=prior_dilate_index, smooth_iter=smooth_index)
-        
-        tifffile.imwrite(os.path.join(Comparison_dir, f"output_stack.tif"), np.stack(output_stack, axis=0).astype(np.uint16))
-        tifffile.imwrite(os.path.join(Comparison_dir, f"clustered_stack.tif"), np.stack(clustered_stack, axis=0).astype(np.uint16))
-    

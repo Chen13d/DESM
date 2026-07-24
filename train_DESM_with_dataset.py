@@ -1,7 +1,11 @@
 import os
+import copy
 cwd = os.getcwd()
 from tqdm import tqdm
 from options.options import parse
+
+import numpy as np
+from utils import path_is_set, load_pretrained_weights, save_checkpoint, load_checkpoint
 
 from dataset.read_prepared_data import *
 from dataset.gen_datasets import *
@@ -26,8 +30,13 @@ else:
 
 
 def train(opt):
-    toolbox = ToolBox(opt=opt)    
-    net_main = DSCM_with_dataset(opt, in_channels=1, num_classes=len(opt['category']), model_name_G=opt['net_G']['model_decouple_name'], 
+    toolbox = ToolBox(opt=opt)
+    opt_for_model = copy.deepcopy(opt)
+    if "net_G" in opt_for_model:
+        opt_for_model["net_G"]["pretrain_dir"] = "None"
+    if "net_D" in opt_for_model:
+        opt_for_model["net_D"]["pretrain_dir"] = "None"
+    net_main = DSCM_with_dataset(opt_for_model, in_channels=1, num_classes=len(opt['category']), model_name_G=opt['net_G']['model_decouple_name'], 
                           model_name_D=opt['net_D']['model_name'], initialize=opt['net_G']['initialize'], 
                           scheduler_name=opt['train']['scheduler'], device=device, loss_factor_list=opt['net_G']['weight_decouple'], 
                           lr_G=opt['train']['lr_G'], lr_D=opt['train']['lr_D'])
@@ -70,6 +79,37 @@ def train(opt):
     
     # generate folders for validation
     toolbox.make_folders()
+    run_id = os.path.basename(toolbox.save_dir_list[1])
+    run_root = os.path.dirname(os.path.dirname(toolbox.save_dir_list[1]))
+    ckpt_dir = os.path.join(run_root, "checkpoints", run_id)
+    os.makedirs(ckpt_dir, exist_ok=True)
+
+    resume_dir = opt.get("resume_dir", None)
+    start_epoch = 0
+    global_step = 0
+    best_score_pixel, best_score_pear = None, None
+    if path_is_set(resume_dir) and os.path.exists(resume_dir):
+        print(f"[Resume] Loading checkpoint: {resume_dir}")
+        start_epoch, global_step, best_score_pixel, best_score_pear = load_checkpoint(
+            resume_dir, net_main, device=device, strict=True
+        )
+        print(f"[Resume] start_epoch={start_epoch}, global_step={global_step}, best_pixel={best_score_pixel}, best_pear={best_score_pear}")
+    else:
+        if path_is_set(resume_dir):
+            print(f"[Resume] Checkpoint not found: {resume_dir}")
+        else:
+            print("[Resume] No checkpoint specified, training from scratch.")
+        if path_is_set(opt['net_G'].get('pretrain_dir', None)):
+            load_pretrained_weights(
+                opt['net_G']['pretrain_dir'], net_main.net_G,
+                device=device, preferred_key="net_G", strict=False, name="net_G"
+            )
+        if hasattr(net_main, "net_D") and path_is_set(opt['net_D'].get('pretrain_dir', None)):
+            load_pretrained_weights(
+                opt['net_D']['pretrain_dir'], net_main.net_D,
+                device=device, preferred_key="net_D", strict=False, name="net_D"
+            )
+
     # list for training and validation loss
     epoch_list_train = []
     epoch_list_val = []
@@ -81,7 +121,7 @@ def train(opt):
     run_time_list = []
     num_org = len(opt['category'])
     num_train_image = opt['num_file_train']
-    for epoch in range(opt['train']['epoches']):
+    for epoch in range(start_epoch, opt['train']['epoches']):
         net_main.net_G.train()
         print('======================== training epoch %d ========================'%(epoch+1))    
         print(f'Epoch {epoch+1}, Learning Rate: {net_main.optim_G.param_groups[0]["lr"]}')
@@ -98,6 +138,7 @@ def train(opt):
                     fake_main = net_main.feed_data(Input=Input, GT=GT_DS)
                 loss_main = net_main.calculate_loss(batch_index=batch_index, mask=None, stage="train")
                 net_main.update_net(loss_list=loss_main)
+                global_step += 1
                 for col in range(cols):
                     curr_list[col].append(loss_main[col].item()) if loss_main[col] != 0 else curr_list[col].append(0)
                 bar.set_description_str(
@@ -159,7 +200,7 @@ def train(opt):
                     if opt['net_G']['weight_decouple'][5] > 0:
                         toolbox.save_model(model=[net_main.net_D], name=["main_D"])
                     pixel_aver = np.mean(curr_list[0])
-                    if epoch+1 == opt['train']['epoches_per_save']: 
+                    if best_score_pixel is None or best_score_pear is None:
                         best_score_pixel = pixel_aver
                         best_score_pear = pearson_aver
                     else:
@@ -171,6 +212,17 @@ def train(opt):
                             best_score_pear = pearson_aver
                             toolbox.save_model(model=[net_main.net_G], name=["best_G_pear"])
                             toolbox.save_val_list(name="best_pear")
+                    ckpt_path = os.path.join(ckpt_dir, f"ckpt_{epoch+1}.pt")
+                    save_checkpoint(
+                        ckpt_path,
+                        net_main=net_main,
+                        epoch=epoch,
+                        global_step=global_step,
+                        best_score_pixel=best_score_pixel,
+                        best_score_pear=best_score_pear,
+                        opt_cfg=opt
+                    )
+                    print(f"[Checkpoint] Saved: {ckpt_path}")
                     
         bar.close()
         train_list = [loss_list_train]
@@ -184,3 +236,5 @@ def train(opt):
 
 if __name__ == "__main__":
     train(opt=opt)
+
+

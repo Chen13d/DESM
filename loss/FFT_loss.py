@@ -43,20 +43,4 @@ class FFTLoss(nn.Module):
         return fftloss
 
 if __name__ == "__main__":
-    device = 'cuda'
-    freq_criterion = FFTLoss().to(device)
-    import numpy as np
-    from PIL import Image
-    import matplotlib.pyplot as plt
-    img_1 = np.array(Image.open(r'D:\CQL\codes\microscopy_decouple\data\train_HR\Microtubes\2.tif'))
-    img_2 = np.array(Image.open(r'D:\CQL\codes\microscopy_decouple\data\train_HR\Mitochondria\2.tif'))
-    img_1 = torch.tensor(np.float64(img_1), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-    img_2 = torch.tensor(np.float64(img_2), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-    stack_1 = torch.concat([img_1, img_2], dim=1)
-    stack_2 = torch.ones_like(stack_1, device=device)
-    loss = freq_criterion(stack_1, stack_2)
-    print(loss)
-    '''a = torch.rand((1,1,256,256), device=device)
-    b = torch.ones((1,1,256,256), device=device)
-    loss = freq_criterion(a, a)
-    print(loss)'''
+    print("FFT_loss.py is intended to be imported from training or evaluation code.")

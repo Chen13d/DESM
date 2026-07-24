@@ -13,13 +13,13 @@ from loss.pearson_loss import *
 from skimage.metrics import structural_similarity as ssim
 
 def extract_number(item):
-	# 从文件名中提取数字并转换为整数
+	# File nameConvert
 	number = re.findall(r'\d+', item)
 	return int(number[0]) if number else 0
 
 
 def check_existence(dir_path):
-	"""确保输出目录存在并清空旧文件"""
+	"""EnsureOutput"""
 	if not os.path.exists(dir_path):
 		os.makedirs(dir_path)
 	else:
@@ -58,10 +58,10 @@ def generate_overlapped_map(image_list):
 
 
 def get_lists_2(read_dir):
-	# 按数字顺序读取文件
+	# Read
 	file_list = sorted(os.listdir(read_dir), key=extract_number)
 
-	# 根据命名规则分类
+	# According toClass
 	input_list, gt1_list, gt2_list, pred1_list, pred2_list = [], [], [], [], []
 	for name in file_list:
 		p = os.path.join(read_dir, name)
@@ -71,17 +71,17 @@ def get_lists_2(read_dir):
 			gt1_list.append(p)
 		elif "GT_1" in name:
 			gt2_list.append(p)
-		elif "pred_0" in name:  # 注意: 改为 pred_0
+		elif "pred_0" in name:  # Note: pred_0
 			pred1_list.append(p)
-		elif "pred_1" in name:  # 注意: 改为 pred_1
+		elif "pred_1" in name:  # Note: pred_1
 			pred2_list.append(p)
 	return input_list, gt1_list, pred1_list, gt2_list, pred2_list
 
 def get_lists_3(read_dir):
-	# 按数字顺序读取文件
+	# Read
 	file_list = sorted(os.listdir(read_dir), key=extract_number)
 
-	# 根据命名规则分类
+	# According toClass
 	input_list, gt1_list, gt2_list, gt3_list, pred1_list, pred2_list, pred3_list = [], [], [], [], [], [], []
 	for name in file_list:
 		p = os.path.join(read_dir, name)
@@ -93,9 +93,9 @@ def get_lists_3(read_dir):
 			gt2_list.append(p)
 		elif "GT_2" in name:
 			gt3_list.append(p)
-		elif "pred_0" in name:  # 注意: 改为 pred_0
+		elif "pred_0" in name:  # Note: pred_0
 			pred1_list.append(p)
-		elif "pred_1" in name:  # 注意: 改为 pred_1
+		elif "pred_1" in name:  # Note: pred_1
 			pred2_list.append(p)
 		elif "pred_2" in name:
 			pred3_list.append(p)
@@ -150,20 +150,20 @@ def _gaussian_kernel(channels, kernel_size=11, sigma=1.5, device="cpu"):
     return kernel
 
 def masked_ssim_torch(img1, img2, mask=None, data_range=1.0, kernel_size=11, sigma=1.5, C1=0.01**2, C2=0.03**2):
-    if mask is None:                       # 默认假设 0 表示被 mask
+    if mask is None:                       # Default 0 mask
         mask = ((img1 != 0) & (img2 != 0)).float()
     else:
         mask = mask.float()
 
     kernel = _gaussian_kernel(img1.shape[1], kernel_size, sigma, img1.device)
 
-    # 1）对图像与掩膜做加权平均
+    # 1)Image
     def filter2d(x):
         return F.conv2d(x, kernel, padding=kernel_size//2, groups=x.shape[1])
 
-    # 有效像素数（不同位置可能不一样）
+    # Pixel()
     mask_mean = filter2d(mask)
-    mask_mean = torch.clamp(mask_mean, min=1e-12)      # 避免除零
+    mask_mean = torch.clamp(mask_mean, min=1e-12)      # Avoid
 
     mu1 = filter2d(img1 * mask) / mask_mean
     mu2 = filter2d(img2 * mask) / mask_mean
@@ -180,48 +180,44 @@ def masked_ssim_torch(img1, img2, mask=None, data_range=1.0, kernel_size=11, sig
     ssim_map = ((2 * mu1_mu2 + C1) * (2 * sigma12 + C2)) / \
                ((mu1_sq + mu2_sq + C1) * (sigma1_sq + sigma2_sq + C2))
 
-    # 2）只在有效区域求均值
+    # 2)
     ssim_mean = (ssim_map * mask).sum() / mask.sum()
-    return ssim_mean.item(), ssim_map         # 返回全局 SSIM 和局部 SSIM map
+    return ssim_mean.item(), ssim_map         # Return SSIM SSIM map
 
 
 def masked_pcc_torch(img1, img2, mask=None, eps=1e-8):
-	"""
-	img*: Tensor，形状 (N, C, H, W) 或 (C, H, W) 或 (H, W)
-	mask: 同形状布尔张量；若为 None，则默认两图非零处为有效像素
-	返回: (N, C) 或 (C,) 或 float，具体取决于输入维度
-	"""
+	"""img*: Tensor, Shape (N, C, H, W) (C, H, W) (H, W) mask: Shape; None, DefaultPixel Return: (N, C) (C,) float, InputDimension"""
 	if mask is None:
 		mask = (img1 != 0) & (img2 != 0)
 	mask = mask.float()
 
-	# 展平成 (batch, channel, num_valid)
+	# (batch, channel, num_valid)
 	def flatten_valid(x):
 		return x.reshape(x.shape[0], x.shape[1], -1)  # N C L
 	
 	x = flatten_valid(img1*mask)
 	y = flatten_valid(img2*mask)
-	m = flatten_valid(mask)          # 有效像素计数
+	m = flatten_valid(mask)          # Pixel
 
-	# 有效像素数 (N, C, 1)
+	# Pixel (N, C, 1)
 	n_valid = m.sum(dim=-1, keepdim=True).clamp_(min=2)
 
-	# 均值
+	# Implementation note.
 	mean_x = x.sum(dim=-1, keepdim=True) / n_valid
 	mean_y = y.sum(dim=-1, keepdim=True) / n_valid
 
-	# 去均值
+	# Implementation note.
 	x_cent = x - mean_x
 	y_cent = y - mean_y
 
-	# 协方差与方差
+	# Implementation note.
 	cov_xy = (x_cent * y_cent).sum(dim=-1) / (n_valid.squeeze(-1) - 1 + eps)
 	var_x  = (x_cent**2).sum(dim=-1) / (n_valid.squeeze(-1) - 1 + eps)
 	var_y  = (y_cent**2).sum(dim=-1) / (n_valid.squeeze(-1) - 1 + eps)
 
 	pcc = cov_xy / (var_x.sqrt() * var_y.sqrt() + eps)
 
-	# 去掉多余维度，尽量返回标量
+	# Dimension, Return
 	while pcc.dim() > 0 and pcc.shape[0] == 1:
 		pcc = pcc.squeeze(0)
 	return pcc.item()
@@ -321,74 +317,4 @@ def cal_NRMAE_PSNR_SSIM_overlapped(read_dir, save_dir_overlapped, save_dir_non_o
 			
 
 if __name__ == "__main__":
-	# single-organelle
-	if 0:
-		read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Real_comparison\data_20250811_real_Mito"
-		save_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Real_comparison\MAE_SSIM_PSNR.csv"
-		num_org = 1
-		cal_NRMAE_PSNR_SSIM(read_dir=read_dir, save_dir=save_dir, num_org=num_org)
-	# Micro Mito
-	if 0:
-		num_org = 2
-		read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_228_0_1\data_20250904"
-		save_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_228_0_1\MAE_SSIM_PSNR.csv"
-		cal_NRMAE_PSNR_SSIM(read_dir=read_dir, save_dir=save_dir, num_org=num_org)
-	# Mito Lyso
-	if 0:
-		num_org = 2
-		read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_Lyso_228_0_1\data_20250904"
-		save_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_Lyso_228_0_1\MAE_SSIM_PSNR.csv"
-		cal_NRMAE_PSNR_SSIM(read_dir=read_dir, save_dir=save_dir, num_org=num_org)
-	# Micro Lyso
-	if 1:
-		num_org = 2
-		read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Lyso_228_0_1\data_20250904"
-		save_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Lyso_228_0_1\MAE_SSIM_PSNR.csv"
-		cal_NRMAE_PSNR_SSIM(read_dir=read_dir, save_dir=save_dir, num_org=num_org)
-	# Micro Mito Lyso
-	if 0:
-		read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_Lyso_228_0_1\data_20250904"
-		save_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_Lyso_228_0_1\MAE_SSIM_PSNR.csv"
-		num_org = 3
-		cal_NRMAE_PSNR_SSIM(read_dir=read_dir, save_dir=save_dir, num_org=num_org)
-
-	if 0:
-		num_org = 3
-		# Micro Mito Lyso
-		if 0:
-			read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_Lyso_228_0_1\data_20250904"
-			save_dir_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_Lyso_228_0_1\MAE_SSIM_PSNR_overlapped.csv"
-			save_dir_non_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_inner_deconv_Micro\MAE_SSIM_PSNR_non_overlapped.csv"
-		# IMM Micro
-		if 0:
-			read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_inner_deconv_Micro\data_20250720_1"
-			save_dir_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_inner_deconv_Micro\MAE_SSIM_PSNR_overlapped.csv"
-			save_dir_non_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Mito_inner_deconv_Micro\MAE_SSIM_PSNR_non_overlapped.csv"
-		# NPCs Micro
-		if 0:
-			read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Micro\data_20250721"
-			save_dir_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Micro\MAE_SSIM_PSNR_overlapped.csv"
-			save_dir_non_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Micro\MAE_SSIM_PSNR_non_overlapped.csv"
-		# NPCs IMM
-		if 0:
-			read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv\data_20250722"
-			save_dir_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv\MAE_SSIM_PSNR_overlapped.csv"
-			save_dir_non_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv\MAE_SSIM_PSNR_non_overlapped.csv"
-		# Tubulin IMM NPCs
-		if 0:
-			read_dir = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\data_20250720_1"
-			save_dir_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\MAE_SSIM_PSNR_overlapped.csv"
-			save_dir_non_overlapped = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\NPCs_Mito_inner_deconv_Micro\MAE_SSIM_PSNR_non_overlapped.csv"
-		num_org = 2
-		cal_NRMAE_PSNR_SSIM_overlapped(read_dir=read_dir, 
-								 save_dir_overlapped=save_dir_overlapped, 
-								 save_dir_non_overlapped=save_dir_non_overlapped, 
-								 num_org=num_org)
-
-	
-			
-            
-			
-		
-	
-
+    print("cal_MAE_SSIM_PSNR.py is a utility helper. Please edit the input/output paths before running it directly.")

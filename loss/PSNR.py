@@ -1,23 +1,7 @@
 import numpy as np
 
 def calculate_psnr(img1, img2, data_range=None):
-    """
-    计算两张图像之间的 PSNR
-
-    参数
-    ----
-    img1, img2 : np.ndarray
-        两张待比较的图像，shape 必须一致
-    data_range : float or None
-        图像动态范围。
-        - 如果是 8-bit 图像，通常设为 255
-        - 如果是 [0,1] 浮点图，通常设为 1.0
-        - 如果为 None，则自动用 max(img1, img2) - min(img1, img2)
-
-    返回
-    ----
-    psnr : float
-    """
+    """CalculateImage PSNR Parameter ---- img1, img2 : np.ndarray Image, shape data_range : float or None Image. - If 8-bit Image, 255 - If [0,1] , 1.0 - If None, max(img1, img2) - min(img1, img2) Return ---- psnr : float"""
     img1 = np.asarray(img1, dtype=np.float64)
     img2 = np.asarray(img2, dtype=np.float64)
 

@@ -9,7 +9,7 @@ degeneration_w0: 5.0
 noise_level: 4
 read_LR: True
 read_version: "prepared"
-excel_path: D:\Onedrive\Work\DSRM_paper\simulation_experiment\statistics
+excel_path: None
 net_G:
   initialize: True
   input_channels: 1

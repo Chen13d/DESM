@@ -151,7 +151,7 @@ def evaluate_IL_synthetic(opt):
                 excel_path = os.path.join(save_dir, "metrics.xlsx")
                 df.to_excel(excel_path, index=False)
 
-                print(f"已保存到: {excel_path}")
+                print(f"Saved to: {excel_path}")
 
     bar.close()
 

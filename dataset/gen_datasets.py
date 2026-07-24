@@ -186,9 +186,18 @@ class Dataset_degradation(Dataset):
             if self.crop_flag:
                 HR_list[it], confocal_list[it] = self.rand_crop(img_1=HR_list[it], img_2=confocal_list[it], image_size=HR_list[it].shape, crop_size=crop_size)
             else:
-                HR_list[it] = HR_list[it][:crop_size,:crop_size]
-                confocal_list[it] = confocal_list[it][:crop_size,:crop_size]
-            # generate individual LR images h,w,c
+                #HR_list[it] = HR_list[it][:crop_size,:crop_size]
+                #confocal_list[it] = confocal_list[it][:crop_size,:crop_size]
+                HR_list[it] = HR_list[it][
+                    (HR_list[it].shape[0] - crop_size) // 2:(HR_list[it].shape[0] - crop_size) // 2 + crop_size,
+                    (HR_list[it].shape[1] - crop_size) // 2:(HR_list[it].shape[1] - crop_size) // 2 + crop_size
+                ]
+
+                confocal_list[it] = confocal_list[it][
+                    (confocal_list[it].shape[0] - crop_size) // 2:(confocal_list[it].shape[0] - crop_size) // 2 + crop_size,
+                    (confocal_list[it].shape[1] - crop_size) // 2:(confocal_list[it].shape[1] - crop_size) // 2 + crop_size
+                ]
+                            # generate individual LR images h,w,c
             if self.read_LR:
                 pass
             else:

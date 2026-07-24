@@ -1,57 +1,41 @@
-import os, sys
- 
-parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-sys.path.append(parent_dir)
-
-from utils import *
-
-
-
-import pandas as pd
-import re
+import argparse
 from pathlib import Path
 
-# ==== 需要你改的部分（或直接用默认）====
-in_csv = r"C:\Users\18923\OneDrive\Work\DSRM_paper\synthetic_data_eval\Micro_Mito_Lyso_228_0_1\rFRC.csv"  # 原始表格路径
-# =======================================
+import pandas as pd
 
-# 输出文件名：原名后加_sorted
-out_csv = Path(in_csv).with_name(Path(in_csv).stem + "_sorted.csv")
 
-# 读入
-df = pd.read_csv(in_csv)
+def sort_rfrc_csv(in_csv, out_csv=None):
+    in_csv = Path(in_csv)
+    out_csv = Path(out_csv) if out_csv else in_csv.with_name(f"{in_csv.stem}_sorted.csv")
+    df = pd.read_csv(in_csv)
 
-# 找到所有 rFRC_value 列
-value_cols = [c for c in df.columns if "rFRC_value" in c]
+    value_cols = [c for c in df.columns if "rFRC_value" in c]
+    pairs = []
+    for vcol in value_cols:
+        mcol = vcol.replace("rFRC_value", "mean_FRC")
+        if mcol in df.columns:
+            pairs.append((mcol, vcol))
+        else:
+            print(f"[Skipped] Could not find the mean_FRC column corresponding to {vcol}: {mcol}")
 
-print(df.columns)
+    sorted_parts = []
+    for mcol, vcol in pairs:
+        part = df[[mcol, vcol]].sort_values(by=vcol, ascending=True, na_position="last").reset_index(drop=True)
+        sorted_parts.append(part)
 
-# 根据 rFRC_value 列，推断对应的 mean_rFRC 列名
-pairs = []
-for vcol in value_cols:
-    # 假设只是把字符串里的 rFRC_value 换成 mean_rFRC
-    mcol = vcol.replace("rFRC_value", "mean_FRC")
-    print(mcol)
-    if mcol in df.columns:
-        pairs.append((mcol, vcol))
-    else:
-        print(f"[跳过] 找不到与 {vcol} 对应的 mean_rFRC 列：{mcol}")
+    other_cols = [c for c in df.columns if c not in {c for p in pairs for c in p}]
+    if other_cols:
+        sorted_parts.append(df[other_cols].reset_index(drop=True))
 
-# 为每一对列排序，并横向拼接
-sorted_parts = []
-for mcol, vcol in pairs:
-    part = df[[mcol, vcol]].sort_values(by=vcol, ascending=True, na_position="last").reset_index(drop=True)
-    sorted_parts.append(part)
+    out_df = pd.concat(sorted_parts, axis=1)
+    out_df.to_csv(out_csv, index=False)
+    print(f"Saved to: {out_csv}")
+    return out_csv
 
-# 如果还想保留未参与排序的其它列，可以把它们拼在后面
-other_cols = [c for c in df.columns if c not in {c for p in pairs for c in p}]
-if other_cols:
-    # 其它列保持原顺序，不排序（或自行决定怎么处理）
-    others = df[other_cols].reset_index(drop=True)
-    sorted_parts.append(others)
 
-# 合并并保存
-out_df = pd.concat(sorted_parts, axis=1)
-out_df.to_csv(out_csv, index=False)
-
-print(f"已保存到: {out_csv}")
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Sort rFRC CSV columns by rFRC value.")
+    parser.add_argument("in_csv", help="Path to the input rFRC CSV file.")
+    parser.add_argument("-o", "--out-csv", default=None, help="Optional output CSV path.")
+    args = parser.parse_args()
+    sort_rfrc_csv(args.in_csv, args.out_csv)

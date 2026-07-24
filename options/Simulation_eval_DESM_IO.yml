@@ -10,7 +10,7 @@ noise_level: 4
 denoise: train
 read_LR: True
 read_version: "prepared"
-excel_path: None #C:\Users\18923\Desktop\DSRM_paper_on_submission_material\DSRM paper\simulation_experiment\statistics
+excel_path: None # optional path to simulation statistics
 net_G:
   initialize: True
   input_channels: 1
@@ -19,7 +19,7 @@ net_G:
   # pixel loss fea_loss feq_loss grad_loss corr_loss adv_loss
   weight_decouple: [1, 0, 0, 1, 0, 1]
   mode_decouple: GAN
-  pretrain_dir: D:\CQL\codes\microscopy_decouple\validation\DSCM_simulation_Line_145255_Ellipse_200255_grad_loss_sigma_5.0_level_4\weights\1\main_G.pth
+  pretrain_dir: validation\YOUR_MODEL_DIR\weights\1\main_G.pth
   
 net_D:
   model_name: UnetD 

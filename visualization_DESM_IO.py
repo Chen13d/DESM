@@ -62,6 +62,7 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
             if file_list[file_index].find('.tif') != -1 or file_list[file_index].find('.png') != -1:
                 read_dir_file = os.path.join(read_dir, file_list[file_index])
                 zoom = folder_zoom
+                convert_ratio = 1
                 for i in range(len(zoom_list)):
                     if read_dir_file.find(zoom_list[i]) != -1:
                         zoom = zoom_list[i]
@@ -74,7 +75,9 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
                                 if raw_h == size_list[size_index]:
                                     convert_ratio = convert_table[zoom_index][size_index]/20
                                     img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
-                #convert_ratio = 0.95
+                
+                # For the data acquired from MAICO system, microtubule-mitochondrion data. 
+                if read_dir_file.find("MAICO") != -1: convert_ratio = 1.5
                 img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
                 
                 h, w = img.shape
@@ -163,17 +166,6 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
                         plt.show()
 
 
-
-if __name__ == "__main__":
-    
-    # Micro Lyso
-    if 0:
-        read_dir = r'D:\CQL\codes\microscopy_decouple\visualization\Multi_structure\Microtubes_Lysosomes\data'
-        weights_dir = r"D:\CQL\codes\microscopy_decouple\validation\DSCM_Micro_Lyso_280_0.070_1_DSCM_384_Unet_fea_loss_0.1_SSIM_loss_1_grad_loss_1_GAN_loss_1_real-time_1000_epoches\weights\1\main_G.pth"
-        #weights_dir = r"D:\CQL\codes\microscopy_decouple\validation\DSCM_Micro_Lyso_360_0.030_1_DSCM_384_Unet_fea_loss_0.1_SSIM_loss_1_grad_loss_0_GAN_loss_1_real-time_1000_epoches_test\weights\1\main_G.pth"
-        save_dir = r'D:\CQL\codes\microscopy_decouple\visualization\Multi_structure\Microtubes_Lysosomes\results'
-        DESM_IO_inference(read_dir=read_dir, weights_dir=weights_dir, save_dir=save_dir, resize_to_const=False)
-    
             
 
     

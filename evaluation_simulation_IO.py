@@ -91,19 +91,19 @@ def main():
 
     bar.close()
 
-    # 将这些列表打包在一起，以 mae_list 为排序依据，从小到大
+    # List, mae_list Sort,
     sorted_items = sorted(zip(mae_list, Input_list, GT_list, sta_list), key=lambda x: x[0])
 
-    # 解包排序后的前50项
+    # Sort50
     mae_list_sorted, Input_list_sorted, GT_list_sorted, sta_list_sorted = zip(*sorted_items)
 
-    # 如果你需要的是列表形式（而不是 tuple）
+    # IfNeedList( tuple)
     mae_list = list(mae_list_sorted)
     #Input_list = list(Input_list_sorted)
     #GT_list = list(GT_list_sorted)
     #sta_list = list(sta_list_sorted)
 
-    # 保存验证图像
+    # SaveImage
     toolbox.gen_validation_images_IO(data_list=[Input_list, GT_list, sta_list])
     toolbox.save_val_list(name="main")
 

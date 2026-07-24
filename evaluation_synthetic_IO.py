@@ -49,13 +49,7 @@ def safe_nanmean(x):
 
 
 def build_region_masks_from_gt(GT_DS, device):
-    """
-    从 GT_DS 构造四种 mask:
-      1) full_mask          : 整张图
-      2) foreground_mask    : 所有通道前景并集
-      3) overlap_mask       : 至少两个通道同时存在的区域
-      4) non_overlap_mask   : 前景中的非重叠区域
-    """
+    """GT_DS mask: 1) full_mask : 2) foreground_mask : Channel 3) overlap_mask : Channel 4) non_overlap_mask :"""
     overlap_count = torch.zeros_like(GT_DS[0, 0], dtype=torch.uint8, device=device)
     foreground_union = torch.zeros_like(GT_DS[0, 0], dtype=torch.uint8, device=device)
 
@@ -81,16 +75,7 @@ def build_region_masks_from_gt(GT_DS, device):
 
 
 def compute_region_metrics(fake_main, GT_DS, mask_np, SSIM_criterion):
-    """
-    在给定 mask 上，统一计算:
-      - NRMAE
-      - SSIM
-      - PCC
-      - PSNR
-
-    fake_main, GT_DS: torch.Tensor, [1,C,H,W]
-    mask_np: np.ndarray, [H,W]
-    """
+    """mask , Calculate: - NRMAE - SSIM - PCC - PSNR fake_main, GT_DS: torch.Tensor, [1,C,H,W] mask_np: np.ndarray, [H,W]"""
     fake_np = to_cpu(fake_main.squeeze(0).permute(1, 2, 0))   # [H,W,C]
     gt_np = to_cpu(GT_DS.squeeze(0).permute(1, 2, 0))         # [H,W,C]
 
@@ -361,7 +346,7 @@ def evaluate_IO_synthetic(opt):
 
         excel_path = os.path.join(save_dir, "metrics.xlsx")
         df.to_excel(excel_path, index=False)
-        print(f"已保存到: {excel_path}")
+        print(f"Saved to: {excel_path}")
 
     bar.close()
 

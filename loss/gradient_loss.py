@@ -207,19 +207,19 @@ class Get_grad_std(nn.Module):
         self.blur_kernel = nn.Parameter(data=self.gaussian_kernel(kernel_size=blur_kernel_size, sigma=blur_kernel_std), requires_grad=False).to(device)
 
     def gaussian_kernel(self, kernel_size, sigma):
-        # 创建一个以中心为原点的二维网格
+        # Implementation note.
         x = torch.arange(-kernel_size // 2 + 1, kernel_size // 2 + 1, dtype=torch.float32)
         y = torch.arange(-kernel_size // 2 + 1, kernel_size // 2 + 1, dtype=torch.float32)
         grid = torch.meshgrid(x, y)
         grid = torch.stack(grid)
 
-        # 计算高斯分布的权重
+        # CalculateWeights
         variance = sigma**2
         gaussian = torch.exp(-torch.sum(grid**2, dim=0) / (2*variance))
-        gaussian = gaussian / gaussian.sum()  # 归一化
+        gaussian = gaussian / gaussian.sum()  # Normalize
 
-        # 转换为卷积核的形状
-        gaussian = gaussian.unsqueeze(0).unsqueeze(0)  # 添加batch和channel维度
+        # ConvertConvolutionShape
+        gaussian = gaussian.unsqueeze(0).unsqueeze(0)  # batchchannelDimension
         gaussian = gaussian.repeat(1, self.num_classes, 1, 1)
         return gaussian
         
@@ -244,38 +244,4 @@ class Get_grad_std(nn.Module):
 
     
 if __name__ == "__main__":
-    from utils import *
-    import tifffile
-    device = 'cuda'
-    image = np.array(Image.open(r'D:\CQL\codes\microscopy_decouple\data\STED_data\simulation\Lysosome\STED_0.tif'))
-    img = torch.tensor(np.float64(image), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-    get_gradstd = Get_grad_std(kernel_size=3, blur_kernel_size=7, blur_kernel_std=3)
-    #get_gradstd(img)
-    size = 512
-    gt_list = []
-    pred_list = []
-    stack = tifffile.imread(r"C:\Users\20151\Desktop\新建文件夹 (3)\700-1.tif")
-    stack = torch.tensor(np.float64(stack), dtype=torch.float, device=device)
-    for index_frame in range(stack.shape[0]):
-        img = stack[index_frame,:,:]
-        for i in range(3):
-            gt_list.append(img[0:size, (i+1)*size:(i+2)*size].unsqueeze(0).unsqueeze(0))
-            pred_list.append(img[size:2*size, (i+1)*size:(i+2)*size].unsqueeze(0).unsqueeze(0))
-    
-    index = 0
-    get_gradstd(pred_list[index])
-    get_gradstd(gt_list[index])
-
-    plt.show()
-    """get_grad = Get_gradient(device='cuda', num_species=1, kernel_size=3)
-    grad = get_grad(img)
-    #img = to_cpu(img.squeeze(0).squeeze(0))
-    grad = to_cpu(grad.squeeze(0).squeeze(0))
-    plt.figure(1)
-    plt.subplot(121)
-    plt.imshow(image)
-    plt.subplot(122)
-    plt.imshow(grad)
-    plt.show()"""
-
-
+    print("gradient_loss.py is intended to be imported from training or evaluation code.")

@@ -6,8 +6,8 @@ num_workers: 0
 output_mode: 'single'
 size: 512
 up_factor: 1
-degradation_resolution: 280
-noise_level: 0.280
+degradation_resolution: 225
+noise_level: 0
 average: 1
 degradation_method: blur-composite-noise
 denoise: train

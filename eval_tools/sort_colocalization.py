@@ -12,7 +12,7 @@ def sort_colocalization(read_dir, num_org=2, save_dir=None):
     df = pd.read_csv(read_dir)
     filtered_df = df[df['Images'].str.contains('Output')]
     image_count = len(df['Images'].dropna())
-    # 显示筛选后的数据
+    # DisplayFilterData
     org_pearson_list = [[] for i in range(num_org)]
     org_col_list = [[] for i in range(num_org)]
     for i in range(image_count):
@@ -30,5 +30,4 @@ def sort_colocalization(read_dir, num_org=2, save_dir=None):
 
 
 if __name__ == "__main__":
-    read_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\SIM_synthetic_data\CCPS_ER_Microtubules\noise_0\Results of noise_0.csv'
-    sort_colocalization(read_dir=read_dir, num_org=3)
+    print("sort_colocalization.py is a utility helper. Please edit the input CSV before running it directly.")

@@ -11,7 +11,7 @@ def merge_csv(read_dir, save_dir, Org_list, name_list, combination_list, noise_l
     name_count = 0
     data_list = [[] for i in range(len(name_list))]
     half_len_name_list = len(name_list) // 2
-    # 遍历组合
+    # Iterate over
     for combination_index in range(len(combination_list)):
         folder_path = os.path.join(read_dir, "{}\\noise_{}\\Resolution_csv".format(combination_list[combination_index], noise_list[0]))
         org_list = Org_list[combination_index]
@@ -20,14 +20,14 @@ def merge_csv(read_dir, save_dir, Org_list, name_list, combination_list, noise_l
         GT_list = [[] for i in range(num_org)]
         Output_list = [[] for i in range(num_org)]
 
-        # 获取文件夹中所有的CSV文件名
+        # DirectoryCSVFile name
         csv_files = [f for f in os.listdir(folder_path) if f.endswith('.csv')]
         csv_files = natsort.natsorted(csv_files)
         for file in csv_files:
             file_path = os.path.join(folder_path, file)
-            # 读取CSV文件
+            # ReadCSV
             df = pd.read_csv(file_path)
-            # 将文件名作为一列添加到数据中（可选）
+            # File nameData()
             name = file[:file.find(".csv")]
             #df['source_file'] = file[:file.find(".csv")]
             if name.find("Input") != -1:
@@ -39,7 +39,7 @@ def merge_csv(read_dir, save_dir, Org_list, name_list, combination_list, noise_l
                 elif name.find("GT") != -1 and name.find(org_list[i]) != -1:
                     GT_list[i].append(df)
 
-        # 将数据追加到all_data中
+        # Dataall_data
         Input_df = pd.concat([*Input_list], ignore_index=True)
         Output_df = [[] for i in range(num_org)]
         GT_df = [[] for i in range(num_org)]
@@ -97,11 +97,11 @@ def arrange_csv_from_single_organelle(read_dir, save_dir):
             print("error in {}".format(i))
 
     
-    # 根据rFRC_value_list的值对所有列表进行排序
+    # According torFRC_value_listListSort
     sorted_lists = sorted(zip(rFRC_value_list, mean_rFRC_list, min_rFRC_list, max_rFRC_list), key=lambda x: x[0])
-    # 解压已排序的列表
+    # SortList
     rFRC_value_list, mean_rFRC_list, min_rFRC_list, max_rFRC_list = zip(*sorted_lists)
-     # 你可以在这里保存排序后的结果，示例是保存为一个新的CSV文件
+     # SaveSortResult, Save asCSV
     result_df = pd.DataFrame({
         'rFRC value': rFRC_value_list,
         'Mean FRC (nm)': mean_rFRC_list,
@@ -113,54 +113,7 @@ def arrange_csv_from_single_organelle(read_dir, save_dir):
 
     
 if __name__ == "__main__":
-    if 1:
-        read_dir = r"D:\CQL\codes\microscopy_decouple\data\STED_data\resolution_measurement\Mito_inner\csv"
-        save_dir = r"D:\CQL\codes\microscopy_decouple\data\STED_data\resolution_measurement\Mito_inner\arranged.csv" 
-        arrange_csv_from_single_organelle(read_dir=read_dir, save_dir=save_dir)
-
-    if 0:
-        noise_list = [0]
-        combination_list = ['Microtubules_Lysosome', 'Mitochondria_outer_Lysosome', 'Microtubules_Mitochondria_outer', 'Microtubules_Mitochondria_outer_Lysosome']
-        org_list = [['micro', 'lyso'], ['mito_outer', 'lyso'], ['micro', 'mito_outer'], ['micro', 'mito_outer', 'lyso']]
-        name_list = [
-            'mean_micro_micro_lyso_GT', 'mean_micro_micro_lyso_Output', 'mean_lyso_micro_lyso_GT', 'mean_lyso_micro_lyso_Output', 
-            'mean_mito_mito_lyso_GT', 'mean_mito_mito_lyso_Output', 'mean_lyso_mito_lyso_GT', 'mean_lyso_mito_lyso_Output',
-            'mean_micro_micro_mito_GT', 'mean_micro_micro_mito_Output', 'mean_mito_micro_mito_GT', 'mean_mito_micro_mito_Output', 
-            'mean_micro_micro_mito_lyso_GT', 'mean_micro_micro_mito_lyso_Output', 'mean_mito_micro_mito_lyso_GT', 'mean_mito_micro_mito_lyso_Output', 'mean_lyso_micro_mito_lyso_GT', 'mean_lyso_micro_mito_lyso_Output', 
-            'min_micro_micro_lyso_GT', 'min_micro_micro_lyso_Output', 'min_lyso_micro_lyso_GT', 'min_lyso_micro_lyso_Output', 
-            'min_mito_mito_lyso_GT', 'min_mito_mito_lyso_Output', 'min_lyso_mito_lyso_GT', 'min_lyso_mito_lyso_Output',
-            'min_micro_micro_mito_GT', 'min_micro_micro_mito_Output', 'min_mito_micro_mito_GT', 'min_mito_micro_mito_Output', 
-            'min_micro_micro_mito_lyso_GT', 'min_micro_micro_mito_lyso_Output', 'min_mito_micro_mito_lyso_GT', 'min_mito_micro_mito_lyso_Output', 'min_lyso_micro_mito_lyso_GT', 'min_lyso_micro_mito_lyso_Output', 
-        ]    
-        read_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\DSRM_synthetic_data'
-        save_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\DSRM_synthetic_data\Resolution.csv'
-        merge_csv(read_dir=read_dir, save_dir=save_dir, Org_list=org_list, name_list=name_list, combination_list=combination_list)
-    if 0:
-        noise_list = [0]
-        combination_list = ['CCPS_ER', 'CCPS_Micro', 'CCPS_F-actin', 'ER_Micro', 'CCPS_ER_Micro']
-        org_list = [['CCPS', 'ER'], ['CCPS', 'Micro'], ['CCPS', 'F-actin'], ['ER', 'Micro'], ['CCPS', 'ER', 'Micro']]
-        name_list = [
-            'mean_CCPS_CCPS_ER_GT', 'mean_CCPS_CCPS_ER_Output', 'mean_ER_CCPS_ER_GT', 'mean_ER_CCPS_ER_Output', 
-            'mean_CCPS_CCPS_Micro_GT', 'mean_CCPS_CCPS_Micro_Output', 'mean_Micro_CCPS_Micro_GT', 'mean_Micro_CCPS_Micro_Output', 
-            'mean_CCPS_CCPS_F-actin_GT', 'mean_CCPS_CCPS_F-actin_Output', 'mean_F-actin_CCPS_F-actin_GT', 'mean_F-actin_CCPS_F-actin_Output', 
-            'mean_ER_ER_Micro_GT', 'mean_ER_ER_Micro_Output', 'mean_Micro_ER_Micro_GT', 'mean_Micro_ER_Micro_Output', 
-            'mean_CCPS_CCPS_ER_Micro_GT', 'mean_CCPS_CCPS_ER_Micro_Output', 'mean_ER_CCPS_ER_Micro_GT', 'mean_ER_CCPS_ER_Micro_Output', 'mean_Micro_CCPS_ER_Micro_GT', 'mean_Micro_CCPS_ER_Micro_Output', 
-            #'mean_CCPS_CCPS_ER_F-actin_GT', 'mean_CCPS_CCPS_ER_F-actin_Output', 'mean_ER_CCPS_ER_F-actin_GT', 'mean_ER_CCPS_ER_F-actin_Output', 'mean_F-actin_CCPS_ER_F-actin_GT', 'mean_F-actin_CCPS_ER_F-actin_Output', 
-            #'mean_CCPS_CCPS_Micro_F-actin_GT', 'mean_CCPS_CCPS_Micro_F-actin_Output', 'mean_Micro_CCPS_Micro_F-actin_GT', 'mean_Micro_CCPS_Micro_F-actin_Output', 'mean_F-actin_CCPS_Micro_F-actin_GT', 'mean_F-actin_CCPS_Micro_F-actin_Output', 
-            #'mean_ER_ER_Micro_F-actin_GT', 'mean_ER_ER_Micro_F-actin_Output', 'mean_Micro_ER_Micro_F-actin_GT', 'mean_Micro_ER_Micro_F-actin_Output', 'mean_F-actin_ER_Micro_F-actin_GT', 'mean_F-actom_ER_Micro_F-actin_Output', 
-            'min_CCPS_CCPS_ER_GT', 'min_CCPS_CCPS_ER_Output', 'min_ER_CCPS_ER_GT', 'min_ER_CCPS_ER_Output', 
-            'min_CCPS_CCPS_Micro_GT', 'min_CCPS_CCPS_Micro_Output', 'min_Micro_CCPS_Micro_GT', 'min_Micro_CCPS_Micro_Output', 
-            'min_CCPS_CCPS_F-actin_GT', 'min_CCPS_CCPS_F-actin_Output', 'min_F-actin_CCPS_F-actin_GT', 'min_F-actin_CCPS_F-actin_Output', 
-            'min_ER_ER_Micro_GT', 'min_ER_ER_Micro_Output', 'min_Micro_ER_Micro_GT', 'min_Micro_ER_Micro_Output', 
-            'min_CCPS_CCPS_ER_Micro_GT', 'min_CCPS_CCPS_ER_Micro_Output', 'min_ER_CCPS_ER_Micro_GT', 'min_ER_CCPS_ER_Micro_Output', 'min_Micro_CCPS_ER_Micro_GT', 'min_Micro_CCPS_ER_Micro_Output', 
-            #'min_CCPS_CCPS_ER_F-actin_GT', 'min_CCPS_CCPS_ER_F-actin_Output', 'min_ER_CCPS_ER_F-actin_GT', 'min_ER_CCPS_ER_F-actin_Output', 'min_F-actin_CCPS_ER_F-actin_GT', 'min_F-actin_CCPS_ER_F-actin_Output', 
-            #'min_CCPS_CCPS_Micro_F-actin_GT', 'min_CCPS_CCPS_Micro_F-actin_Output', 'min_Micro_CCPS_Micro_F-actin_GT', 'min_Micro_CCPS_Micro_F-actin_Output', 'min_F-actin_CCPS_Micro_F-actin_GT', 'min_F-actin_CCPS_Micro_F-actin_Output', 
-            #'min_ER_ER_Micro_F-actin_GT', 'min_ER_ER_Micro_F-actin_Output', 'min_Micro_ER_Micro_F-actin_GT', 'min_Micro_ER_Micro_F-actin_Output', 'min_F-actin_ER_Micro_F-actin_GT', 'min_F-actom_ER_Micro_F-actin_Output', 
-        ]
-        read_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\SIM_synthetic_data'
-        save_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\SIM_synthetic_data\Resolution.csv'
-        merge_csv(read_dir=read_dir, save_dir=save_dir, Org_list=org_list, name_list=name_list, combination_list=combination_list)
+    print("merge_csv_resolution.py is a utility helper. Please edit the input folders and metric names before running it directly.")
                 
-
 
 

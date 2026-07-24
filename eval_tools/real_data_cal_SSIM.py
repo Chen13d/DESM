@@ -39,6 +39,4 @@ def real_data_cal_SSIM(read_dir, save_dir):
         
 
 if __name__ == "__main__":
-    read_dir = r"D:\CQL\DSCM\real_data_eval\Micro_Mito_eval\results\228_0.015_4"
-    save_dir = r""
-    real_data_cal_SSIM(read_dir=read_dir, save_dir=save_dir)
+    print("real_data_cal_SSIM.py is a utility helper. Please edit the input folder before running it directly.")

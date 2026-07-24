@@ -25,24 +25,4 @@ def find_max_SSIM(read_dir, save_dir, name_list):
 
         
 if __name__ == "__main__":
-    if 0:
-        read_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\DSRM_synthetic_data\MAE_SSIM.csv'
-        save_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\DSRM_synthetic_data\MAE_SSIM_sta.csv'
-        name_list = [
-        'mae_micro_micro_lyso', 'mae_lyso_micro_lyso', 'SSIM_micro_micro_lyso', 'SSIM_lyso_micro_lyso', 'mae_micro_lyso', 'SSIM_micro_lyso', 
-        'mae_mito_mito_lyso', 'mae_lyso_mito_lyso', 'SSIM_mito_mito_lyso', 'SSIM_lyso_mito_lyso', 'mae_mito_lyso', 'SSIM_mito_lyso', 
-        'mae_micro_micro_mito', 'mae_mito_micro_mito', 'SSIM_micro_micro_mito', 'SSIM_mito_micro_mito', 'mae_micro_mito', 'SSIM_micro_mito', 
-        'mae_micro_micro_mito_lyso', 'mae_mito_micro_mito_lyso', 'mae_lyso_micro_mito_lyso', 'SSIM_micro_micro_mito_lyso', 'SSIM_mito_micro_mito_lyso', 'SSIM_lyso_micro_mito_lyso', 'mae_micro_mito_lyso', 'SSIM_micro_mito_lyso'
-        ]
-        df = find_max_SSIM(read_dir=read_dir, save_dir=save_dir, name_list=name_list)
-    
-    if 0:
-        read_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\SIM_synthetic_data\MAE_SSIM.csv'
-        save_dir = r'D:\CQL\codes\microscopy_decouple\evaluation\DSRM\SIM_synthetic_data\MAE_SSIM_sta.csv'
-        name_list = [
-        'mae_CCPS_CCPS_ER', 'mae_ER_CCPS_ER', 'SSIM_CCPS_CCPS_ER', 'SSIM_ER_CCPS_ER', 'mae_CCPS_ER', 'SSIM_CCPS_ER', 
-        'mae_CCPS_CCPS_Micro', 'mae_Micro_CCPS_Micro', 'SSIM_CCPS_CCPS_Micro', 'SSIM_Micro_CCPS_Micro', 'mae_CCPS_Micro', 'SSIM_CCPS_Micro', 
-        'mae_ER_ER_Micro', 'mae_Micro_ER_Micro', 'SSIM_ER_ER_Micro', 'SSIM_Micro_ER_Micro', 'mae_ER_Micro', 'SSIM_ER_Micro', 
-        'mae_CCPS_CCPS_ER_Micro', 'mae_ER_CCPS_ER_Micro', 'mae_Micro_CCPS_ER_Micro', 'SSIM_CCPS_CCPS_ER_Micro', 'SSIM_ER_CCPS_ER_Micro', 'SSIM_Micro_CCPS_ER_Micro', 'mae_CCPS_ER_Micro', 'SSIM_CCPS_ER_Micro'
-        ]
-        find_max_SSIM(read_dir=read_dir, save_dir=save_dir, name_list=name_list)
+    print("find_max_SSIM.py is a utility helper. Please provide your own CSV paths and metric names before running it directly.")

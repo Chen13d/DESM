@@ -17,31 +17,21 @@ def make_thresh_image(image):
     return thresh_image
 
 def compute_structural_complexity(image_path: str) -> float:
-    """
-    计算论文中的结构复杂度(Mean Gradient, MG)
-    公式: MG = 1/(M*N) * Σ Σ sqrt( ((ΔI/Δx)^2 + (ΔI/Δy)^2) / 2 )
-
-    参数:
-        image_path: str
-            输入图像路径，支持彩色或灰度图像。
-    返回:
-        mg: float
-            图像的结构复杂度(MG)。
-    """
-    # 1. 读取并转换为灰度图，归一化到 [0, 1]
+    """Calculate(Mean Gradient, MG) : MG = 1/(M*N) * Σ Σ sqrt( ((ΔI/Δx)^2 + (ΔI/Δy)^2) / 2 ) Parameter: image_path: str Input imagePath, Image. Return: mg: float Image(MG)."""
+    # 1. ReadConvert, Normalize [0, 1]
     img = tifffile.imread(image_path)
     img = np.float64(img)
     
     thresh_image = make_thresh_image(img)
 
     img /= np.max(img)
-    # 2. 计算梯度 (使用中心差分近似 ΔI/Δx, ΔI/Δy)
+    # 2. Calculate ( ΔI/Δx, ΔI/Δy)
     gy, gx = np.gradient(img)
 
-    # 3. 按公式计算每个像素的梯度幅值
+    # 3. CalculatePixel
     grad_mag = np.sqrt((gx ** 2 + gy ** 2) / 2)
     
-    # 4. 平均所有像素的梯度幅值
+    # 4. Pixel
     mg = np.mean(grad_mag)
     mg /= np.sum(thresh_image)
     
@@ -63,10 +53,6 @@ def structural_complexity(folder_dir):
 
 
 if __name__ == "__main__":
-    folder_dir = r"D:\CQL\codes\microscopy_decouple\data\STED_data\deconv_8_bit_smooth\Lyso"
-    mg_value = structural_complexity(folder_dir)
-    # Micro 5.413055628046009e-08
-    # IMM 1.3436628737191923e-07
-    # NPCs 1.5869048512267204e-07
+    print("get_structral_complexity.py is a utility helper. Please edit the input folder before running it directly.")
 
     

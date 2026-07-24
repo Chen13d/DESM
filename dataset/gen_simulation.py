@@ -17,7 +17,7 @@ from loss.SSIM_loss import SSIM
 
 
 # =========================
-# 基础绘图与形变函数
+# PlotFunction
 # =========================
 
 def rand_lines(img_shape, num_lines, min_len=50, max_len=150, max_tries=1000):
@@ -45,10 +45,7 @@ def draw_lines(img_shape, lines, int_range, width=1):
 
 
 def draw_ellipse_like_lines_fixed(img_shape, lines, alpha, int_range, max_thickness=8, min_thickness=2):
-    """
-    alpha = 0 时是椭圆，alpha = 1 时是线段，中间为过渡状态
-    使用传入的 lines 位置绘图
-    """
+    """alpha = 0 , alpha = 1 , lines Plot"""
     H, W = img_shape
     img = np.zeros(img_shape, dtype=np.uint8)
     intensity = randint(*int_range)
@@ -77,9 +74,7 @@ def draw_ellipse_like_lines_fixed(img_shape, lines, alpha, int_range, max_thickn
 
 
 def draw_ellipse_like_lines(img_shape, num_shapes, alpha, int_range, min_len=12, max_len=15, max_thickness=8, min_thickness=2):
-    """
-    alpha = 0 时是椭圆，alpha = 1 时是线段，中间为过渡状态
-    """
+    """alpha = 0 , alpha = 1 ,"""
     H, W = img_shape
     img = np.zeros(img_shape, dtype=np.uint8)
     intensity = randint(*int_range)
@@ -136,7 +131,7 @@ def check_existence(dir_path):
 
 
 # =========================
-# 可选：GPU KMeans（保留但当前不再使用）
+# : GPU KMeans()
 # =========================
 
 def kmeans_torch(X, n_clusters, n_iters=100, n_init=10, device='cuda'):
@@ -172,17 +167,11 @@ def kmeans_torch(X, n_clusters, n_iters=100, n_init=10, device='cuda'):
 
 
 # =========================
-# 新版 lifetime map 生成函数
+# lifetime map Function
 # =========================
 
 def find_overlap_background(thresholded_list):
-    """
-    输入:
-      thresholded_list: list of binary masks (0/1)
-    输出:
-      overlapped: 重叠区域 mask
-      background: 背景区域 mask
-    """
+    """Input: thresholded_list: list of binary masks (0/1) Output: overlapped: mask background: Background mask"""
     stack = np.stack([(np.asarray(m) > 0).astype(np.uint8) for m in thresholded_list], axis=0)
     count = stack.sum(axis=0)
 
@@ -192,15 +181,7 @@ def find_overlap_background(thresholded_list):
 
 
 def all_components_cv2(label_img, connectivity=8, background_value=0):
-    """
-    对 label_img 中每个取值分别做连通域分析。
-    不同类别不会混在一起。
-
-    返回:
-      cc_labels: 每个连通域一个唯一 id
-      comp_value: dict, component_id -> 原始类别值
-      comp_area: dict, component_id -> 连通域面积
-    """
+    """label_img . Class. Return: cc_labels: id comp_value: dict, component_id -> Class comp_area: dict, component_id ->"""
     label_img = np.asarray(label_img)
     cc_labels = np.zeros(label_img.shape, dtype=np.int32)
 
@@ -247,16 +228,16 @@ def fill_overlapped_components_from_neighbors(
 
     rng = np.random.default_rng(seed)
 
-    # 目标连通域：overlapped!=0 的像素所在的 component id
+    # : overlapped!=0 Pixel component id
     target_ids = np.unique(cc_labels[ov])
 
-    # donor 像素：overlapped==0 且 非背景
+    # donor Pixel: overlapped==0 Background
     donor_pixel_mask = (~ov) & (sl != background_value)
 
-    # donor_labels：只保留 donor 区域内的 component id，其他地方置 0
+    # donor_labels: donor component id, 0
     donor_labels = np.where(donor_pixel_mask, cc_labels, 0)
 
-    # 形态学核：决定“扩圈”的邻接方式
+    # : ""
     if connectivity == 4:
         kernel = np.array([[0, 1, 0],
                            [1, 1, 1],
@@ -264,9 +245,9 @@ def fill_overlapped_components_from_neighbors(
     elif connectivity == 8:
         kernel = np.ones((3, 3), dtype=np.uint8)
     else:
-        raise ValueError("connectivity 只能是 4 或 8")
+        raise ValueError("connectivity must be 4 or 8")
 
-    # 全局 donor 值池（用于 fallback_global）
+    # donor (Used for fallback_global)
     if fallback_global:
         global_donor_ids = np.unique(donor_labels)
         global_donor_ids = global_donor_ids[global_donor_ids != 0]
@@ -314,16 +295,7 @@ def fill_overlapped_components_from_neighbors(
 
 
 def make_lifetime_distribution(num_org, thresholded_list, size, seed=123):
-    """
-    新版 lifetime map 生成方式：
-    1. 每个结构先按类别值写入 simulated_lifetime
-    2. 重叠区域标成 -1
-    3. 连通域分析
-    4. 重叠区域按邻近 donor component 回填
-
-    返回:
-      filled: uint16 lifetime/class map
-    """
+    """lifetime map : 1. ClassWrite simulated_lifetime 2. -1 3. 4. donor component Return: filled: uint16 lifetime/class map"""
     fac_list = [1, 2, 3, 4, 5, 6, 7, 8, 9][:num_org]
 
     simulated_lifetime = np.zeros((size, size), dtype=np.int32)
@@ -333,7 +305,7 @@ def make_lifetime_distribution(num_org, thresholded_list, size, seed=123):
         mask = (np.asarray(thresholded_list[index_thresh]) > 0)
         simulated_lifetime[mask] = fac_list[index_thresh] + simulated_lifetime[mask]
 
-    # 重叠区域单独标记，防止和普通类别值撞上
+    # , PreventClass
     simulated_lifetime[overlapped != 0] = -1
 
     cc_labels, comp_value, comp_area = all_components_cv2(
@@ -354,14 +326,14 @@ def make_lifetime_distribution(num_org, thresholded_list, size, seed=123):
         fallback_global=True
     )
 
-    # 背景保持 0
+    # Background 0
     filled[background != 0] = 0
 
     return filled.astype(np.uint16)
 
 
 # =========================
-# 数据集生成主函数
+# DataFunction
 # =========================
 
 def make_dataset(num_levels,
@@ -398,7 +370,7 @@ def make_dataset(num_levels,
             check_existence(denoised_dir)
             check_existence(lifetime_dir)
 
-            # 控制椭圆向线过渡
+            # Implementation note.
             alpha = (i - 1) / (num_levels - 2)
             SSIM_list = []
 
@@ -433,17 +405,17 @@ def make_dataset(num_levels,
                 line_img = np.clip(line_img, 0, 255)
                 ellipse_img = np.clip(ellipse_img, 0, 255)
 
-                # 合并图像（线 + 椭圆/线）
+                # MergeImage( + /)
                 combined = line_img.astype(np.uint16) + ellipse_img.astype(np.uint16)
 
-                # 高斯模糊模拟 PSF
+                # Simulation PSF
                 blurred = gaussian_filter(combined, sigma=sigma)
 
-                # 模糊 GT
+                # GT
                 line_img = gaussian_filter(line_img, sigma=1)
                 ellipse_img = gaussian_filter(ellipse_img, sigma=1)
 
-                # 二值化，用于 lifetime map
+                # , Used for lifetime map
                 line_img_thresholded = copy.deepcopy(line_img)
                 ellipse_img_thresholded = copy.deepcopy(ellipse_img)
 
@@ -464,7 +436,7 @@ def make_dataset(num_levels,
                     seed=index
                 )
 
-                # 保存图像
+                # Save image
                 line_img = np.expand_dims(line_img, axis=0)
                 ellipse_img = np.expand_dims(ellipse_img, axis=0)
                 stack = np.stack((line_img, ellipse_img), axis=0)
@@ -482,7 +454,7 @@ def make_dataset(num_levels,
 
 
 # =========================
-# 主程序
+# Implementation note.
 # =========================
 
 num_levels = 4

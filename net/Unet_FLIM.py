@@ -24,15 +24,15 @@ class Attention_block(nn.Module):
         self.relu = nn.ReLU(inplace=True)
 
     def forward(self, g, x):
-        # 下采样的gating signal 卷积
+        # Downsamplegating signal Convolution
         g1 = self.W_g(g)
-        # 上采样的 l 卷积
+        # Upsample l Convolution
         x1 = self.W_x(x)
         # concat + relu
         psi = self.relu(g1 + x1)
-        # channel 减为1，并Sigmoid,得到权重矩阵
+        # channel 1, Sigmoid,WeightsMatrix
         psi = self.psi(psi)
-        # 返回加权的 x
+        # Return x
         return x * psi
 
 
@@ -181,18 +181,4 @@ class Unet_FLIM_att(nn.Module):
 
   
 if __name__ == "__main__":
-    import os, sys
-    import tifffile
-    import numpy as np
-    import matplotlib.pyplot as plt
-
-    parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
-    sys.path.append(parent_dir)
-    from utils import *
-    input = torch.randn((1,1,1024,1024), dtype=torch.float32).cuda()
-    FLIM_distribution = tifffile.imread(r"C:\Users\18923\Desktop\FLIM_decouple\asc_map_3\1_FLIM_distribution.tif")
-    FLIM_distribution = torch.tensor(np.float64(FLIM_distribution), dtype=torch.float, device='cuda').unsqueeze(0).unsqueeze(0)
-    model = Unet_FLIM_att(input_dim=1, num_classes=2, n_channels=64, upscale_factor=1).cuda()
-    input = torch.concat([input, FLIM_distribution], dim=1)
-    output= model(input)
-    print(output.size())
+    print("Unet_FLIM.py is intended to be imported from training or inference code.")

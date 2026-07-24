@@ -4,7 +4,7 @@ device: cuda:0
 num_workers: 0
 size: 512
 up_factor: 1
-degradation_resolution: 228
+degradation_resolution: 225
 noise_level: 0
 average: 1
 degradation_method: blur-composite-noise
@@ -17,10 +17,10 @@ net_G:
   model_decouple_name: Unet
   # pixel loss fea_loss feq_loss grad_loss corr_loss adv_loss
   weight_decouple: [0, 0, 0, 0, 0, 0]
-  pretrain_dir: Trained_models\DESM_IO\DESM_IO_Micro_Mito_Lyso_228_0_1_temp.pth
+  pretrain_dir: Trained_models\DESM_IO\....pth
   #Trained_models\DESM_IO\....pth
 
-save_eval_dir: visualization\Semi_synthetic_evaluation\DESM_IO\Micro_Mito_Lyso_228_0_1_temp
+save_eval_dir: visualization\Semi_synthetic_evaluation\DESM_IO\Micro_Mito_inner
   
 net_D:
   model_name: UnetD 
@@ -59,6 +59,6 @@ train_dir_HR: data\train_HR #_deconv
 val_dir_HR: data\val_HR #_deconv
 
 
-category: ['Micro', 'Mito', 'Lyso']
-factor_list: [1, 1, 1]
+category: ['Mito_inner_deconv', 'Micro']
+factor_list: [1, 1]
 ########################################################

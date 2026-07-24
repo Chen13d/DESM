@@ -144,16 +144,20 @@ def DESM_IO_inference_with_reference(read_dir, weights_dir, weights_dir_dn=None,
             bar.update(1)
 
         # save in stack if needed
-        #if name:
-        #    stack = np.stack(save_list, axis=0)
-        #    tifffile.imwrite(r"D:\CQL\codes\microscopy_decouple\visualization\Multi_structure\Microtubes_Mitochondria_eval\resized results\{}.tif".format(name), stack, imagej=True)
-
-
+        if name:
+            stack = np.stack(save_list, axis=0)
+            tifffile.imwrite(r"visualization\Experimental_data_eval\Micro_Mito\resized results\{}.tif".format(name), stack, imagej=True)
 if __name__ == "__main__":
-    if 1:
-        read_dir = r"visualization\real-world data\DESM_IO_Microtubes_Mitochondria_with_reference\data"
-        weights_dir = r"Trained_models\DESM_Micro_Mito_228_0.040_4_DSCM_384_Unet_fea_loss_0.1_SSIM_loss_1_grad_loss_1_GAN_loss_1_real-time_1000_epoches\weights\1\main_G.pth"
-        save_dir = r'visualization\real-world data\DESM_IO_Microtubes_Mitochondria_with_reference\results'
-        DESM_IO_inference_with_reference(read_dir=read_dir, weights_dir=weights_dir, save_dir=save_dir, show_image=True)
+
+    read_dir = r"visualization\Experimental_data_eval\Micro_Mito\data"
+    save_dir = r"visualization\Experimental_data_eval\Micro_Mito\results"
+    resolution_list = ["225", "245", "265"]
+    Poisson_noise_list = ["0.040", "0.120", "0.200", "0.280"]
+    for resolution_selected in resolution_list:
+        for Poisson_noise_selected in Poisson_noise_list:
+            weights_dir = r"validation\DESM_Micro_Mito_{}_{}_4_DSCM_384_Unet_fea_loss_0.01_SSIM_loss_1_grad_loss_0_GAN_loss_1_real-time_1000_epoches_new_noise\weights\1\main_G.pth".format(resolution_selected, Poisson_noise_selected)
+            DESM_IO_inference_with_reference(read_dir, weights_dir, save_dir=save_dir, show_image=False, name="{}_{}".format(resolution_selected, Poisson_noise_selected))
+    
+
 
    

@@ -75,7 +75,7 @@ class prepared_dataset(Dataset):
             min_val = torch.quantile(image, (100 - percentile) / 100)
             max_val = torch.quantile(image, percentile / 100)
             if max_val == min_val:
-                raise ValueError("最大值和最小值相等，无法进行归一化。")
+                raise ValueError("The maximum and minimum values are equal; normalization cannot be performed.")
 
         scaled = (image - min_val) * (new_max - new_min) / (max_val - min_val) + new_min
         return scaled, min_val, max_val

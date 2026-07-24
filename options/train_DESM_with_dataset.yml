@@ -1,21 +1,21 @@
 ########################################################
 gpu_rank: '0'
 device: cuda:0
-num_workers: 4
+num_workers: 8
 size: 384
 up_factor: 1
-degradation_resolution: 280
-noise_level: 0.280
-average: 1
+degradation_resolution: 225
+noise_level: 0.040
+average: 4
 degradation_method: blur-composite-noise
-lifetime_flag: True
+lifetime_flag: False
 read_LR_flag: False
-read_version: "prepared"
+read_version: "real-time"
 
 net_G:
   initialize: True
   input_channels: 1
-  model_decouple_name: Unet_FLIM_att
+  model_decouple_name: Unet
   # pixel loss fea_loss SSIM_loss grad_loss corr_loss adv_loss
   weight_decouple: [1, 0.01, 1, 0, 0, 1]
   pretrain_dir: None
@@ -24,8 +24,8 @@ net_D:
   model_name: UnetD 
   pretrain_dir: None 
 
-num_file_train: 10
-num_file_val: 10
+num_file_train: 300
+num_file_val: 40
 train:
   mean: [0.0]
   std: [50.0]
@@ -33,14 +33,14 @@ train:
   lr_D: 0.0000001
   index_per_D: 2
   epoches: 1000
-  epoches_per_val: 2
-  epoches_per_save: 2
+  epoches_per_val: 100
+  epoches_per_save: 100
   batch_size: 1
   num_iter: 1
   optimizer: Adam
   scheduler: CosineAnnealingLR
 
-# Here's your the measured resolution (nm) of the raw data (single-channel SR images)
+# Here's the measured resolution (nm) of the raw data (single-channel SR images)
 raw_data_resolution:
   Micro: 85.93
   Mito: 87.09
@@ -59,8 +59,8 @@ validation_dir: validation
 validation_list: ['loss_plots', 'weights', 'excels', 'validation_images', 'train_image']
 
 # Here's your folder name for the training curve, weights and validation images.
-validation_date: test #DSCM_FLIM_new_Mito_Lyso_280_0.070_1_DSCM_384_Unet_fea_loss_0.01_SSIM_loss_1_grad_loss_0_GAN_loss_1_real-time_1000_epoches
+validation_date: test 
 
-category: ['Micro', 'Mito', 'Lyso']
-factor_list: [1 ,1, 1]
+category: ['Micro', 'Mito']
+factor_list: [1, 1]
 ########################################################

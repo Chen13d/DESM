@@ -1,0 +1,29 @@
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+Trained_models/
+Trained_models - 20260413/
+Trained_models - 20260622/
+validation/
+backup/
+temp/
+
+visualization/Experimental data/
+visualization/Experimental_data_eval/
+visualization/DARE_data/
+visualization/Semi_synthetic_evaluation/
+visualization/Semi_synthetic_evaluation - 副本/
+visualization/real-world data - 20260622/
+
+data/prepared_data/
+data/simulated_data/
+data/STED_data/
+data/train_HR/
+data/train_HR_deconv/
+data/train_LR/
+data/val_HR/
+data/val_HR_deconv/
+data/val_LR/
+
+*.zip
