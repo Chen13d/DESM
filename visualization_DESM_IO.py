@@ -173,12 +173,12 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
 
                         plt.subplot(132)
                         plt.imshow(full_pred[:,:,0], cmap='gray')
-                        plt.title('DESM-IL Prediction (Microtubules)')
+                        plt.title('DESM-IO Prediction (Microtubules)')
                         plt.axis('off')
 
                         plt.subplot(133)
                         plt.imshow(full_pred[:,:,1], cmap='gray')
-                        plt.title('DESM-IL Prediction (Lysosomes)')
+                        plt.title('DESM-IO Prediction (Lysosomes)')
                         plt.axis('off')
 
                         plt.tight_layout()
