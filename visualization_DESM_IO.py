@@ -5,6 +5,7 @@ from tqdm import tqdm
 from torchvision import transforms
 from skimage.util import view_as_windows
 from sklearn.linear_model import LinearRegression
+import torch.nn.functional as F
 
 
 size_list = [256, 512, 1024]
@@ -47,14 +48,19 @@ def norm_statistic(Input, device, std=None):
     return output, mean_zero, std
 
 
-def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resize_to_const=False, show_image=False):
+def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resize_to_const=False, show_image=False,
+                      resample_input=True, full_field=False, save_float=False, input_multiplier=1.0):
     file_list = natsort.natsorted(os.listdir(read_dir))    
     folder_zoom = 0
     for file_index in range(len(zoom_list)):
         if read_dir.find(zoom_list[file_index]) != -1:
             folder_zoom = zoom_list[file_index]
-    check_existence(save_dir)
-    model = torch.load(weights_dir, weights_only=False)
+    os.makedirs(save_dir, exist_ok=True)
+    model = torch.load(weights_dir, map_location='cpu', weights_only=False).to(device).eval().requires_grad_(False)
+    for layer in model.modules():
+        if isinstance(layer, torch.nn.modules.batchnorm._BatchNorm):
+            layer.train()
+            layer.track_running_stats = False
     
     bar = tqdm(total=len(file_list))
     with torch.no_grad():
@@ -74,11 +80,13 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
                             for size_index in range(len(size_list)):
                                 if raw_h == size_list[size_index]:
                                     convert_ratio = convert_table[zoom_index][size_index]/20
-                                    img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                                    if resample_input:
+                                        img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
                 
                 # For the data acquired from MAICO system, microtubule-mitochondrion data. 
                 if read_dir_file.find("MAICO") != -1: convert_ratio = 1.5
-                img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                if resample_input:
+                    img = resize(img, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
                 
                 h, w = img.shape
                 size = min(h, w)
@@ -107,25 +115,36 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
                         col_cood_list.append([col*size, (col+1)*size])
                     else:
                         col_cood_list.append([w-size, w])
+                if full_field:
+                    num_row = num_col = 1
+                    row_cood_list, col_cood_list = [[0, h]], [[0, w]]
                 for row in range(num_row):
                     image_list.append([])
                     pred_list.append([])
                     for col in range(num_col):
                         image = img[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
-                        image = torch.tensor(np.float64(image), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-                        image, mean, std = norm_statistic(image, device)
+                        image = torch.from_numpy(np.asarray(image, np.float32)[None, None] * input_multiplier)
+                        image, mean, std = norm_statistic(image, 'cpu')
                         
-                        pred = model(image)
-                        image = image*std+mean
-                        pred = pred*std+mean
+                        tile_h, tile_w = image.shape[-2:]
+                        padded = F.pad(image.to(device), (0, (-tile_w) % 16, 0, (-tile_h) % 16), mode='reflect')
+                        pred = model(padded)[:, :, :tile_h, :tile_w]
+                        image = (image*std+mean) / input_multiplier
+                        pred = (pred*std+mean) / input_multiplier
                         image[image<0] = 0
-                        pred[pred<0] = 0
+                        if not save_float:
+                            pred[pred<0] = 0
                         image_list[row].append(to_cpu(image.squeeze(0).squeeze(0)))
                         pred_list[row].append(to_cpu(pred.squeeze(0).permute(1,2,0)))
                 full_pred = np.zeros((h, w ,pred_list[0][0].shape[-1]))
                 for row in range(num_row):
                     for col in range(num_col):
                         full_pred[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]] = pred_list[row][col]
+                if save_float:
+                    stem = os.path.splitext(file_list[file_index])[0]
+                    for channel in range(full_pred.shape[-1]):
+                        tifffile.imwrite(os.path.join(save_dir, f'{stem}_{channel}_SR_float.tif'), full_pred[:, :, channel].astype(np.float32))
+                full_pred[full_pred < 0] = 0
                 h, w = img.shape
                 img = np.uint8(img/np.max(img)*255)
                 if resize_to_const:
@@ -164,11 +183,3 @@ def DESM_IO_inference(read_dir, weights_dir, device='cuda', save_dir=False, resi
 
                         plt.tight_layout()
                         plt.show()
-
-
-            
-
-    
-    
-    
-    

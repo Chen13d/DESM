@@ -4,6 +4,7 @@ from tqdm import tqdm
 from utils import *
 
 from torchvision import transforms
+import torch.nn.functional as F
 
 
 def norm_statistic(Input, device, std=None):
@@ -15,14 +16,15 @@ def norm_statistic(Input, device, std=None):
 
 
 def DESM_IO_inference_with_reference(read_dir, weights_dir, weights_dir_dn=None, 
-                     device='cuda', save_dir=False, name=None, show_image=False):
+                     device='cuda', save_dir=False, name=None, show_image=False, full_field=False, save_float=False):
     file_list = natsort.natsorted(os.listdir(read_dir))    
-    check_existence(save_dir)
+    os.makedirs(save_dir, exist_ok=True)
     
-    model = torch.load(weights_dir, weights_only=False)
-    warmup_input = torch.randn((1, 1, 2048, 2048), dtype=torch.float32, device=device)
-    with torch.no_grad():
-        model(warmup_input)
+    model = torch.load(weights_dir, map_location='cpu', weights_only=False).to(device).eval().requires_grad_(False)
+    for layer in model.modules():
+        if isinstance(layer, torch.nn.modules.batchnorm._BatchNorm):
+            layer.train()
+            layer.track_running_stats = False
     save_list = []
     bar = tqdm(total=len(file_list))
     with torch.no_grad():
@@ -70,6 +72,9 @@ def DESM_IO_inference_with_reference(read_dir, weights_dir, weights_dir_dn=None,
                         col_cood_list.append([col*size, (col+1)*size])
                     else:
                         col_cood_list.append([w-size, w])
+                if full_field:
+                    num_row = num_col = 1
+                    row_cood_list, col_cood_list = [[0, h]], [[0, w]]
                 for row in range(num_row):
                     image_list.append([])
                     pred_list.append([])
@@ -79,13 +84,16 @@ def DESM_IO_inference_with_reference(read_dir, weights_dir, weights_dir_dn=None,
                         GT_1_image = GT_1[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
                         GT_2_image = GT_2[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
                         
-                        image = torch.tensor(np.float64(image), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-                        image, mean, std = norm_statistic(image, device)
-                        pred = model(image)
+                        image = torch.from_numpy(np.asarray(image, np.float32)[None, None])
+                        image, mean, std = norm_statistic(image, 'cpu')
+                        tile_h, tile_w = image.shape[-2:]
+                        padded = F.pad(image.to(device), (0, (-tile_w) % 16, 0, (-tile_h) % 16), mode='reflect')
+                        pred = model(padded)[:, :, :tile_h, :tile_w]
                         image = image*std+mean
                         pred = pred*std+mean
                         image[image<0] = 0
-                        pred[pred<0] = 0
+                        if not save_float:
+                            pred[pred<0] = 0
                         image = to_cpu(image.squeeze(0).squeeze(0))
                         pred = to_cpu((pred.squeeze(0).permute(1,2,0))) 
                         GT = np.transpose(np.stack((GT_1_image, GT_2_image), axis=0), (1,2,0))
@@ -101,6 +109,11 @@ def DESM_IO_inference_with_reference(read_dir, weights_dir, weights_dir_dn=None,
                 for row in range(num_row):
                     for col in range(num_col):
                         full_GT[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]] = GT_list[row][col]
+                if save_float:
+                    stem = os.path.splitext(file_list[file_index])[0]
+                    for channel in range(full_pred.shape[-1]):
+                        tifffile.imwrite(os.path.join(save_dir, f'{stem}_{channel}_SR_float.tif'), full_pred[:, :, channel].astype(np.float32))
+                full_pred[full_pred < 0] = 0
                 h, w = img.shape
                 img = np.uint8(img/np.max(img)*255)
                 if file_list[file_index].find('tif') != -1:
@@ -157,7 +170,3 @@ if __name__ == "__main__":
         for Poisson_noise_selected in Poisson_noise_list:
             weights_dir = r"validation\DESM_Micro_Mito_{}_{}_4_DSCM_384_Unet_fea_loss_0.01_SSIM_loss_1_grad_loss_0_GAN_loss_1_real-time_1000_epoches_new_noise\weights\1\main_G.pth".format(resolution_selected, Poisson_noise_selected)
             DESM_IO_inference_with_reference(read_dir, weights_dir, save_dir=save_dir, show_image=False, name="{}_{}".format(resolution_selected, Poisson_noise_selected))
-    
-
-
-   

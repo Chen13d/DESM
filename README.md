@@ -49,17 +49,37 @@ Extract the model ZIP into the repository root and the data ZIP into `visualizat
 The IL notebook examples retain `DESM_IL_inference`: raw Intensity and ASC
 files are read, lifetime values are clustered, IO priors determine background
 and class indexing, and the original dilation/smoothing operations run before
-IL reconstruction. The IO examples use `reproduce_release.py` to read raw TIFFs
-and apply the current sampling and normalization. Auxiliary scoring networks
-are not included in this code update.
-Use `python reproduce_release.py --list` to list all eight example datasets.
-New outputs go to `reproduced/`; supplied results are retained for comparison.
+IL reconstruction. IO examples retain `DESM_IO_inference_with_reference` and
+`DESM_IO_inference`, including their original image previews. Run the four
+inference sections in `DESM_demo.ipynb` directly. No extra runner or manifest
+loader is required. New outputs go to `reproduced/`; supplied results are
+retained for comparison. Auxiliary scoring networks are not included.
 
 The model/data manifests inside the resource archives list filenames, channel
 order and parameters. Live IO inputs remain on their native 31/39 nm grids;
 IL examples rerun preprocessing using the designated frozen IO priors.
 Supplied processed TIFFs and label maps are comparison references, not inputs
 required by the raw-data demo.
+For the updated IO examples, `full_field=True` preserves the full field with
+reflect padding, and `save_float=True` saves unclipped float32 TIFFs alongside
+the original 8-bit previews. `resample_input=False` retains an already-correct
+input pixel grid. The fixed `input_multiplier` reproduces the sequence scaling
+before standard-deviation normalization; saved float outputs return to raw
+intensity units. Network weights are fixed; BatchNorm uses the current image
+statistics without updating running statistics.
+
+The other IO datasets use the same original `DESM_IO_inference` function:
+set `read_dir` to the dataset's `data/` folder, set the weight below under
+`Trained_models/DESM_IO/`, and use `resample_input=False, full_field=True,
+save_float=True`. These paths are relative to `visualization/Experimental data/`.
+
+| Dataset folder | Weight filename | input_multiplier |
+| --- | --- | --- |
+| DESM_IO_Microtubules_Lysosomes | DESM_IO_Micro_Lyso_static.pth | 1.0 |
+| DESM_IO_Mitochondria_Lysosomes | DESM_IO_Mito_Lyso.pth | 1.0 |
+| DESM_IO_Microtubules_Mitochondria_Lysosomes | DESM_IO_Micro_Mito_Lyso.pth | 1.0 |
+| DESM_IO_Mitochondria_Lysosomes_motion | DESM_IO_Mito_Lyso_live.pth | 2.902175014472513 |
+
 The original training examples are retained; the newer Integrated joint-grid
 training workflow is not ported in this minimal update. `net/make_model.py`
 contains the SSIM gradient fix and guards zero-valued normalization maxima.
