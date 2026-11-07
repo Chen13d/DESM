@@ -23,6 +23,8 @@ from skimage.util import img_as_ubyte
 
 
 from sklearn.cluster import KMeans
+from threadpoolctl import threadpool_limits
+import torch.nn.functional as F
 from matplotlib.colors import hsv_to_rgb
 
 device = 'cuda'
@@ -385,15 +387,25 @@ def calibrate_labels_by_thresh(thresh_image, sorted_image):
 def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=None, device='cuda', 
                           save_dir=None, resize_to_const=False, tm_min=0, tm_max=5000, 
                           IO_prior_dilate_iter=0, smooth_iter=2, 
-                          org_list=['Micro', 'Mito', 'Lyso'], show_image=False
+                          org_list=['Micro', 'Mito', 'Lyso'], show_image=False,
+                          full_field=False, resample_input=True, normalize_to_255=False,
+                          crop_to_multiple=False, save_float=False
                           ):
-    file_list = natsort.natsorted(os.listdir(read_dir))    
-    asc_list = natsort.natsorted(os.listdir(read_dir_asc))
-    check_existence(save_dir)
+    file_list = natsort.natsorted(f for f in os.listdir(read_dir) if f.lower().endswith(('.tif', '.tiff')))
+    asc_list = natsort.natsorted(f for f in os.listdir(read_dir_asc) if f.lower().endswith('.asc'))
+    if len(file_list) != len(asc_list):
+        raise ValueError('Intensity and ASC file counts differ')
+    os.makedirs(save_dir, exist_ok=True)
+    records = []
     
-    model = torch.load(weights_dir, weights_only=False)
+    model = torch.load(weights_dir, map_location='cpu', weights_only=False).to(device).eval().requires_grad_(False)
     # Using DESM-IO as prior to define the lifetime distribution
-    prior_model = torch.load(prior_weights_dir, weights_only=False)
+    prior_model = torch.load(prior_weights_dir, map_location='cpu', weights_only=False).to(device).eval().requires_grad_(False)
+    for network in (model, prior_model):
+        for layer in network.modules():
+            if isinstance(layer, torch.nn.modules.batchnorm._BatchNorm):
+                layer.train()
+                layer.track_running_stats = False
     
     bar = tqdm(total=len(file_list))
     with torch.no_grad():
@@ -417,11 +429,20 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                             for size_index in range(len(size_list)):
                                 if raw_h == size_list[size_index]:
                                     convert_ratio = convert_table[zoom_index][size_index]/20
-                                    intensity_image = resize(intensity_image, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                                    if resample_input:
+                                        intensity_image = resize(intensity_image, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
                                     intensity_image = intensity_image[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
-                                    lifetime_distribution = resize(lifetime_distribution, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
+                                    if resample_input:
+                                        lifetime_distribution = resize(lifetime_distribution, (int(raw_h*convert_ratio), int(raw_w*convert_ratio)))
                                     lifetime_distribution = lifetime_distribution[int(0.05*(raw_h*convert_ratio)):int(0.95*(raw_h*convert_ratio)), int(0.05*(raw_w*convert_ratio)):int(0.95*(raw_w*convert_ratio))]
 
+                prior_intensity = intensity_image.astype(np.float32)
+                if normalize_to_255:
+                    if resample_input:
+                        intensity_image = prior_intensity * np.float32(255 / intensity_image.max())
+                    else:
+                        intensity_image = (intensity_image.astype(np.float64) / intensity_image.max() * 255).astype(np.float32)
+                        prior_intensity = intensity_image.copy()
                 FLIM_image = gen_FLIM(tm_data=lifetime_distribution, intensity_image=intensity_image, t_range=[tm_min, tm_max])
 
                 # write a FLIM color bar for reference
@@ -434,13 +455,21 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                 vector = lifetime_distribution.reshape(-1, 1)
                 n_cluster = 3
                 kmeans = KMeans(n_clusters=n_cluster, random_state=42, n_init=10)
-                kmeans.fit(vector)
+                with threadpool_limits(limits=4):
+                    kmeans.fit(vector)
                 labels = kmeans.labels_
                 clustered_image = labels.reshape(lifetime_distribution.shape)
 
                 # to ensure dtype
                 clustered_image = clustered_image.astype(np.uint8)
 
+                if crop_to_multiple:
+                    hh, ww = (intensity_image.shape[0] // 16) * 16, (intensity_image.shape[1] // 16) * 16
+                    intensity_image = intensity_image[:hh, :ww]
+                    prior_intensity = prior_intensity[:hh, :ww]
+                    clustered_image = clustered_image[:hh, :ww]
+                    lifetime_distribution = lifetime_distribution[:hh, :ww]
+                    FLIM_image = FLIM_image[:hh, :ww]
                 h, w = intensity_image.shape
                 size = min(h, w)
                 upper_limit = 1440
@@ -469,6 +498,13 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                         col_cood_list.append([col*size, (col+1)*size])
                     else:
                         col_cood_list.append([w-size, w])
+                if full_field:
+                    num_row = num_col = 1
+                    row_cood_list = [[0, h]]
+                    col_cood_list = [[0, w]]
+                    image_list = [[]]
+                    pred_list = [[]]
+                    final_clustered_image_list = [[]]
                 for row in range(num_row):
                     for col in range(num_col):
                         intensity_input = intensity_image[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]]
@@ -476,10 +512,24 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                         tifffile.imwrite(os.path.join(save_dir, "{}_clustered_original.tif".format(file_index)), 
                                          np.uint8(clustered_Input/np.max(clustered_Input)*255))
                         
-                        intensity_input = torch.tensor(np.float64(intensity_input), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-                        intensity_input, mean, std = norm_statistic(intensity_input, device)
-
-                        IO_output = prior_model(intensity_input)
+                        intensity_input = torch.tensor(intensity_input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+                        std = intensity_input.std().clamp_min(1e-8)
+                        mean = torch.zeros_like(std)
+                        intensity_input = intensity_input / std
+                        tile_h, tile_w = intensity_input.shape[-2:]
+                        prior_tile = intensity_image[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]].astype(np.float32)
+                        prior_input = torch.from_numpy(prior_tile)[None, None]
+                        # Preserve the arithmetic used to generate the original priors.
+                        # The resampled three-channel example used CPU normalization
+                        # and restored intensity units; the native live example used GPU statistics.
+                        if not resample_input:
+                            prior_input = prior_input.to(device)
+                        prior_std = prior_input.std().clamp_min(1e-8)
+                        prior_input = prior_input / prior_std
+                        prior_input = F.pad(prior_input.to(device), (0, (-tile_w) % 16, 0, (-tile_h) % 16), mode='reflect')
+                        IO_output = prior_model(prior_input)[:, :, :tile_h, :tile_w]
+                        if resample_input:
+                            IO_output = IO_output * prior_std
                         IO_per_c_list = []
                         IO_prior_list = []
                         # test: generate the mPSF-convolved prior
@@ -534,11 +584,16 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                         clustered_Input = permuted_clustered_Input
                         tifffile.imwrite(os.path.join(save_dir, f"{file_index}_clustered_image_final.tif"), np.uint8(clustered_Input/np.max(clustered_Input)*255))
                         
-                        clustered_Input = torch.tensor(np.float64(clustered_Input), dtype=torch.float, device=device).unsqueeze(0).unsqueeze(0)
-                        clustered_Input, _, _  = norm_statistic(clustered_Input, device=device)
+                        if save_float:
+                            tifffile.imwrite(os.path.join(save_dir, f"{file_index}_lifetime_labels.tif"), clustered_Input.astype(np.float32))
+                            tifffile.imwrite(os.path.join(save_dir, f"{file_index}_input_float.tif"), prior_tile)
+                        clustered_Input = torch.tensor(clustered_Input, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+                        clustered_Input = clustered_Input / clustered_Input.std().clamp_min(1e-8)
                         Input = torch.concat([intensity_input, clustered_Input], dim=1)
-
-                        pred = model(Input)
+                        Input = F.pad(Input.to(device), (0, (-tile_w) % 16, 0, (-tile_h) % 16), mode='reflect')
+                        pred = model(Input)[:, :, :tile_h, :tile_w]
+                        intensity_input = intensity_input.to(device)
+                        clustered_Input = clustered_Input.to(device)
 
                         intensity_input = intensity_input*std+mean
                         pred = pred*std+mean
@@ -552,6 +607,12 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
                 for row in range(num_row):
                     for col in range(num_col):
                         full_pred[row_cood_list[row][0]:row_cood_list[row][1], col_cood_list[col][0]:col_cood_list[col][1]] = pred_list[row][col]
+                if save_float:
+                    for channel in range(full_pred.shape[-1]):
+                        tifffile.imwrite(os.path.join(save_dir, f"{file_index}_{channel}_SR_float.tif"), full_pred[:, :, channel].astype(np.float32))
+                records.append({'index': file_index, 'source': file_list[file_index], 'asc': asc_list[file_index],
+                                'background_mapping': bg_mapping, 'foreground_mapping': fg_mapping,
+                                'shape': [h, w], 'from_raw_ASC': True})
                 h, w = intensity_image.shape
                 intensity_image = np.uint8(intensity_image/np.max(intensity_image)*255)
                 clustered_image = np.uint8(clustered_image/np.max(clustered_image)*255)
@@ -648,3 +709,5 @@ def DESM_IL_inference(read_dir, read_dir_asc, weights_dir, prior_weights_dir=Non
             #clustered_stack.append(to_cpu(clustered_Input)[0,0].astype(np.uint16))
             #tifffile.imwrite(os.path.join(Comparison_dir, f"{prior_dilate_index}_{smooth_index}_Output.tif"), full_pred.astype(np.uint16))
             #tifffile.imwrite(os.path.join(Comparison_dir, f"{prior_dilate_index}_{smooth_index}_clustered_image.tif"), to_cpu(clustered_Input)[0,0].astype(np.uint16))
+
+    return records

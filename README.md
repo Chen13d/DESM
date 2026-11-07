@@ -41,9 +41,38 @@ Qinglin Chen<sup>1,&dagger;</sup>, Luwei Wang<sup>1,&dagger;</sup>, Min Yi<sup>1
 
 ---
 
+## Updated experimental examples (prepared 2026-11-07)
+
+Install the revised model and data archives together. The download links below
+must be updated to their new Zenodo versions when those archives are published.
+Extract the model ZIP into the repository root and the data ZIP into `visualization/`.
+The IL notebook examples retain `DESM_IL_inference`: raw Intensity and ASC
+files are read, lifetime values are clustered, IO priors determine background
+and class indexing, and the original dilation/smoothing operations run before
+IL reconstruction. The IO examples use `reproduce_release.py` to read raw TIFFs
+and apply the current sampling and normalization. Auxiliary scoring networks
+are not included in this code update.
+Use `python reproduce_release.py --list` to list all eight example datasets.
+New outputs go to `reproduced/`; supplied results are retained for comparison.
+
+The model/data manifests inside the resource archives list filenames, channel
+order and parameters. Live IO inputs remain on their native 31/39 nm grids;
+IL examples rerun preprocessing using the designated frozen IO priors.
+Supplied processed TIFFs and label maps are comparison references, not inputs
+required by the raw-data demo.
+The original training examples are retained; the newer Integrated joint-grid
+training workflow is not ported in this minimal update. `net/make_model.py`
+contains the SSIM gradient fix and guards zero-valued normalization maxima.
+
+Revised inference was verified with Python 3.9.21, PyTorch 2.7.0+cu128,
+NumPy 1.26.3, tifffile 2023.4.12, scikit-learn 1.6.1, scikit-image 0.24.0
+and OpenCV 4.11.0. The existing repository dependencies are also required for
+the original visualization/FLIM functions. The older pinned environment below is
+retained for the legacy codebase and has not been revalidated for the new bundle.
+
 ## Environment
 
-The current codebase is tested with the following software environment:
+The original codebase used the following software environment:
 
 - Python 3.8
 - PyTorch 2.0.1
@@ -62,9 +91,9 @@ pip install -r requirements.txt
 
 For a quick reproduction of the main demo workflows:
 
-1. Install the Python dependencies listed in `requirements.txt`.
+1. Use the revised inference environment above for the updated examples, or `requirements.txt` for the legacy workflows.
 2. Download the pretrained models and experimental data from the Zenodo links below.
-3. Extract the downloaded archives into the repository root while keeping the default folder names unchanged.
+3. Extract the model ZIP into the repository root and the data ZIP into `visualization/`.
 4. Launch `DESM_demo.ipynb` from the repository root and run the relevant sections for DESM-IO or DESM-IL inference.
 
 ---
@@ -76,7 +105,7 @@ The repository can be used directly for code inspection and development. For inf
 - **Trained models**: [10.5281/zenodo.20797224](https://doi.org/10.5281/zenodo.20797224)
 - **Experimental data**: [10.5281/zenodo.20796449](https://doi.org/10.5281/zenodo.20796449)
 
-After downloading, extract the archives into the project root so that the folder structure matches the paths used in the code:
+Extract the model archive into the repository root and the experimental-data archive into `visualization/`, producing this structure:
 
 ```text
 DESM/
@@ -90,7 +119,7 @@ DESM/
 
 Recommended setup:
 
-1. Download `Trained_models.zip` from Zenodo and extract it to `DESM/Trained_models/`.
+1. Extract `Trained_models.zip` into `DESM/`; the archive includes its own `Trained_models/` directory.
 2. Download the experimental-data archive from Zenodo and extract it so that the datasets used by the visualization and evaluation scripts are placed under `DESM/visualization/Experimental data/`.
 3. Keep the extracted folder names unchanged unless you also update the corresponding paths in the Python scripts.
 
@@ -116,7 +145,7 @@ Before running the notebook:
 
 1. Make sure `Trained_models/` is present in the project root.
 2. Make sure the experimental datasets used by the demo are present under `visualization/Experimental data/`.
-3. Open the notebook with the same Python environment used to install `requirements.txt`.
+3. Open the updated examples in the revised inference environment described above.
 4. If your local folder layout differs from the default structure, update the path variables in the corresponding notebook cells before execution.
 
 The notebook contains examples for:

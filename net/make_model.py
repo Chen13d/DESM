@@ -219,10 +219,10 @@ class DSCM_with_dataset(Basemodel):
         # SSIM loss
         if self.loss_factor_list[2] > 0: 
             for i in range(self.fake_main.size()[1]):
-                temp_fake = self.fake_main[:,i:i+1,:,:].detach()
+                temp_fake = self.fake_main[:,i:i+1,:,:]
                 temp_GT = self.GT_main[:,i:i+1,:,:].detach()
-                temp_fake = temp_fake / torch.max(temp_fake)
-                temp_GT = temp_GT / torch.max(temp_GT)
+                temp_fake = temp_fake / torch.max(temp_fake).clamp_min(1e-6)
+                temp_GT = temp_GT / torch.max(temp_GT).clamp_min(1e-6)
                 SSIM_value = self.SSIM_criterion(temp_fake, temp_GT)
                 value_one = torch.ones_like(SSIM_value)
                 SSIM_loss = SSIM_loss + (value_one - SSIM_value)
